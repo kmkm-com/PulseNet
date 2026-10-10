@@ -53,11 +53,11 @@ The system features 9 core relations designed toward 3NF/BCNF compliance:
 
 ## Current Mid-Sem Progress Summary
 
-- [ ] **Database Schema:** Formulated the ER/EER model, mapped the relational schema, and written initial PostgreSQL DDL scripts (`schema.sql`).
-- [ ] **Backend Infrastructure:** Initialized the Node.js/Express server, configured the PostgreSQL connection pool (`pg`), and set up environment variables.
-- [ ] **Authentication Layer:** Built REST endpoints for user registration and login, with password hashing using bcrypt and JWT-based authentication.
-- [ ] **Frontend Shell:** Initialized the React application with Vite, set up base client routing, and established API connection modules.
-- [ ] **Midterm Deliverables:** Compiled a 5-page Database Design Document (PDF) covering system assumptions, ER diagram, schema mapping, and normalization justifications.
+- **Database Schema:** Formulated the ER/EER model, mapped the relational schema, and written initial PostgreSQL DDL scripts (`schema.sql`).
+- **Backend Infrastructure:** Initialized the Node.js/Express server, configured the PostgreSQL connection pool (`pg`), and set up environment variables.
+- **Authentication Layer:** Built REST endpoints for user registration and login, with password hashing using bcrypt and JWT-based authentication.
+- **Frontend Shell:** Initialized the React application with Vite, set up base client routing, and established API connection modules.
+- **Midterm Deliverables:** Compiled a 5-page Database Design Document (PDF) covering system assumptions, ER diagram, schema mapping, and normalization justifications.
 
 ---
 
@@ -74,7 +74,7 @@ The system features 9 core relations designed toward 3NF/BCNF compliance:
 Replace the URL below with your actual GitHub repository URL.
 
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
+git clone https://github.com/kmkm-com/PulseNet.git
 cd your-repo-name
 ```
 
