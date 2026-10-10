@@ -19,11 +19,11 @@ This project is built for the DBMS Course Project to demonstrate clean relationa
 
 | Name          | Student ID   | Primary Responsibilities & Contributions                                                                                        |
 | ------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| Member 1 Name | 202X-XX-XXXX | **Lead Backend & Auth:** Server setup, Express routing, JWT authentication, and core API endpoints (`/api/auth`, `/api/posts`). |
-| Member 2 Name | 202X-XX-XXXX | **Social Graph & Messaging:** Connections API, friend request workflows (`friendships`), and notification logic.                |
-| Member 3 Name | 202X-XX-XXXX | **Comments & Engagements:** Post interactions, comment hierarchy routing, and feed UI components.                               |
-| Member 4 Name | 202X-XX-XXXX | **Communities & Groups:** Group creation, role-based access management (`groups`, `group_members`), and group feeds.            |
-| Member 5 Name | 202X-XX-XXXX | **Database & Analytics:** Schema design, SQL migration scripts, database triggers, views, and seed scripts (500+ records).      |
+| Kshitij Mathur | 2024A8PS0462H | **Lead Backend & Auth:** Server setup, Express routing, JWT authentication, and core API endpoints (`/api/auth`, `/api/posts`). |
+| Fidel Saji | 2024AAPS1158H | **Social Graph & Messaging:** Connections API, friend request workflows (`friendships`), and notification logic.                |
+| Ritika Mirium Thomas | 2024A8PS0447H | **Comments & Engagements:** Post interactions, comment hierarchy routing, and feed UI components.                               |
+| Yadavalli Sai Charam | 2024A8PS0460H | **Communities & Groups:** Group creation, role-based access management (`groups`, `group_members`), and group feeds.            |
+| Shresth Prakash Singh | 2024A8PS0324H | **Database & Analytics:** Schema design, SQL migration scripts, database triggers, views, and seed scripts (500+ records).      |
 
 ---
 
