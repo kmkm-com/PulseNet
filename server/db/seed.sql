@@ -9,6 +9,22 @@
 --       for all test accounts.
 -- =============================================================
 
+-- Drop any existing test data and reset serial identity counters
+TRUNCATE TABLE 
+    direct_messages,
+    notifications,
+    group_members,
+    groups,
+    comments,
+    saved_posts,
+    post_likes,
+    post_media,
+    posts,
+    friendships,
+    user_profiles,
+    users
+RESTART IDENTITY CASCADE;
+
 -- -----------------------------------------------------------
 -- 1. USERS  (bcrypt hash of "password123", cost=10)
 -- -----------------------------------------------------------
@@ -51,7 +67,15 @@ INSERT INTO posts (author_id, content, privacy_level) VALUES
     (1, 'Late night coding session with coffee. The best kind of session ☕💻',                 'friends_only');
 
 -- -----------------------------------------------------------
--- 5. POST_LIKES
+-- 5. POST_MEDIA
+-- -----------------------------------------------------------
+INSERT INTO post_media (post_id, storage_bucket, storage_path, media_type, mime_type, file_size_bytes) VALUES
+    (1, 'post-media', 'posts/1/celebration.jpg',       'image', 'image/jpeg', 2458120),
+    (4, 'post-media', 'posts/4/react_ui_preview.png',   'image', 'image/png',  1184920),
+    (5, 'post-media', 'posts/5/demo_screencast.mp4',    'video', 'video/mp4',  15482390);
+
+-- -----------------------------------------------------------
+-- 6. POST_LIKES
 -- -----------------------------------------------------------
 INSERT INTO post_likes (user_id, post_id) VALUES
     (2, 1),   -- Bob liked Alice's post
@@ -62,7 +86,16 @@ INSERT INTO post_likes (user_id, post_id) VALUES
     (1, 5);   -- Alice liked Evan's post
 
 -- -----------------------------------------------------------
--- 6. COMMENTS
+-- 7. SAVED_POSTS
+-- -----------------------------------------------------------
+INSERT INTO saved_posts (user_id, post_id) VALUES
+    (1, 3),   -- Alice saved Charlie's normalisation post
+    (2, 1),   -- Bob saved Alice's project announcement
+    (3, 2),   -- Charlie saved Bob's SQL JOINs post
+    (4, 5);   -- Diana saved Evan's open source post
+
+-- -----------------------------------------------------------
+-- 8. COMMENTS
 -- -----------------------------------------------------------
 INSERT INTO comments (post_id, author_id, content) VALUES
     (1, 2, 'Congrats Alice! Our project is looking great 🔥'),
@@ -72,7 +105,7 @@ INSERT INTO comments (post_id, author_id, content) VALUES
     (5, 4, 'That''s awesome Evan! Which package was it?');
 
 -- -----------------------------------------------------------
--- 7. GROUPS
+-- 9. GROUPS
 -- -----------------------------------------------------------
 INSERT INTO groups (name, description, creator_id) VALUES
     ('DBMS Study Group',  'A group for students studying Database Management Systems.', 3),
@@ -80,7 +113,7 @@ INSERT INTO groups (name, description, creator_id) VALUES
     ('Open Source Club',  'We contribute to open source projects every week!',          5);
 
 -- -----------------------------------------------------------
--- 8. GROUP_MEMBERS
+-- 10. GROUP_MEMBERS
 -- -----------------------------------------------------------
 INSERT INTO group_members (group_id, user_id, role) VALUES
     (1, 3, 'admin'),    -- Charlie created group 1
@@ -92,7 +125,7 @@ INSERT INTO group_members (group_id, user_id, role) VALUES
     (3, 2, 'member');   -- Bob in Open Source Club
 
 -- -----------------------------------------------------------
--- 9. NOTIFICATIONS
+-- 11. NOTIFICATIONS
 -- -----------------------------------------------------------
 INSERT INTO notifications (recipient_id, type, is_read) VALUES
     (1, 'friend_request', FALSE),   -- Alice got a friend request
@@ -100,3 +133,13 @@ INSERT INTO notifications (recipient_id, type, is_read) VALUES
     (3, 'comment',        FALSE),   -- Charlie got a comment notification
     (4, 'friend_request', FALSE),   -- Diana got a request from Bob
     (5, 'post_like',      TRUE);    -- Evan's post was liked
+
+-- -----------------------------------------------------------
+-- 12. DIRECT_MESSAGES
+-- -----------------------------------------------------------
+INSERT INTO direct_messages (sender_id, recipient_id, content, sent_at, read_at) VALUES
+    (1, 2, 'Hey Bob! Are you free to review the database schema PR?', NOW() - INTERVAL '2 hours', NOW() - INTERVAL '1 hour 50 minutes'),
+    (2, 1, 'Sure Alice, looking at it right now! Tables look clean.',  NOW() - INTERVAL '1 hour 45 minutes', NOW() - INTERVAL '1 hour 40 minutes'),
+    (3, 4, 'Hey Diana, loved your new React UI mockup!',              NOW() - INTERVAL '30 minutes', NOW() - INTERVAL '15 minutes'),
+    (4, 3, 'Thanks Charlie! Working on the feed components next.',    NOW() - INTERVAL '10 minutes', NULL),
+    (5, 1, 'Hey Alice, do you need help with the connection pool?',   NOW() - INTERVAL '5 minutes',  NULL);

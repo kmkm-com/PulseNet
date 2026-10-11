@@ -17,37 +17,52 @@ This project is built for the DBMS Course Project to demonstrate clean relationa
 
 ## Team Members & Contributions
 
-| Name          | Student ID   | Primary Responsibilities & Contributions                                                                                        |
-| ------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| Kshitij Mathur | 2024A8PS0462H | **Lead Backend & Auth:** Server setup, Express routing, JWT authentication, and core API endpoints (`/api/auth`, `/api/posts`). |
-| Fidel Saji | 2024AAPS1158H | **Social Graph & Messaging:** Connections API, friend request workflows (`friendships`), and notification logic.                |
-| Ritika Mirium Thomas | 2024A8PS0447H | **Comments & Engagements:** Post interactions, comment hierarchy routing, and feed UI components.                               |
-| Yadavalli Sai Charam | 2024A8PS0460H | **Communities & Groups:** Group creation, role-based access management (`groups`, `group_members`), and group feeds.            |
-| Shresth Prakash Singh | 2024A8PS0324H | **Database & Analytics:** Schema design, SQL migration scripts, database triggers, views, and seed scripts (500+ records).      |
+| Name                  | Student ID   | Primary Responsibilities & Contributions                                                                                        |
+| --------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Kshitij Mathur        | 2024A8PS0462H | **Lead Backend & Auth:** Server setup, Express routing, pg pool, JWT authentication, and core API endpoints (`/api/auth`, `/api/posts`). |
+| Fidel Saji            | 2024AAPS1158H | **Social Graph & Messaging:** Friend request workflows (`friendships`), notification logic, and direct messaging endpoints.     |
+| Ritika Mirium Thomas  | 2024A8PS0447H | **Engagement & Feed:** Post interactions, likes, bookmarking (`saved_posts`), comments, and feed UI components.               |
+| Yadavalli Sai Charam  | 2024A8PS0460H | **Communities & Groups:** Group creation, role-based access management (`groups`, `group_members`), and group feeds.            |
+| Shresth Prakash Singh | 2024A8PS0324H | **Database & Analytics:** Schema design, SQL migration scripts, database triggers, views, and seed data validation (500+ records). |
 
 ---
 
 ## Relational Database Architecture
 
-The system features 9 core relations designed toward 3NF/BCNF compliance:
+The system features 12 core relations designed toward 3NF/BCNF compliance, organized across 6 functional domains:
 
-1. **users:** Secure credential storage (`user_id`, `username`, `email`, `password_hash`).
-2. **user_profiles:** One-to-one relation storing public metadata (`bio`, `location`, `avatar_url`).
-3. **friendships:** Self-referential many-to-many relation managing connection states (`pending`, `accepted`, `declined`).
-4. **posts:** Core content storage with privacy settings (`public`, `friends_only`, `private`).
-5. **post_likes:** Many-to-many associative relation preventing duplicate likes using a composite primary key (`user_id`, `post_id`).
-6. **comments:** Post engagement supporting self-referential parent/child comment threads.
-7. **groups:** Community hubs created by users with foreign key constraints.
-8. **group_members:** Many-to-many associative relation managing group roles (`admin`, `member`).
-9. **notifications:** System alerts triggered by social interactions.
+### Accounts & Profiles
+1. **users:** Secure credential storage and status tracking (`user_id`, `username`, `email`, `password_hash`, `account_status`, `created_at`, `updated_at`).
+2. **user_profiles:** One-to-one extension of users storing public profile information (`profile_id`, `user_id`, `full_name`, `bio`, `location`, `website_url`, `avatar_storage_path`).
+
+### Social Graph
+3. **friendships:** Self-referential relation managing connection states (`requester_id`, `addressee_id`, `status` [pending, accepted, declined], `created_at`, `responded_at`).
+
+### Content & Media
+4. **posts:** Core content storage with privacy settings and soft delete (`post_id`, `author_id`, `content`, `privacy_level` [public, friends_only, private], `created_at`, `updated_at`, `deleted_at`).
+5. **post_media:** One-to-many media attachment storage linked to posts (`media_id`, `post_id`, `storage_bucket`, `storage_path`, `media_type` [image, video], `mime_type`, `file_size_bytes`, `created_at`).
+6. **comments:** Post interactions and discussion threads (`comment_id`, `post_id`, `author_id`, `content`, `created_at`, `updated_at`).
+
+### Engagement
+7. **post_likes:** Many-to-many associative relation preventing duplicate likes via composite primary key (`user_id`, `post_id`, `created_at`).
+8. **saved_posts:** Many-to-many associative relation enabling users to bookmark posts (`user_id`, `post_id`, `saved_at`).
+
+### Communities
+9. **groups:** Community hubs created by users with role enforcement (`group_id`, `name`, `description`, `creator_id`, `visibility` [public, private], `created_at`).
+10. **group_members:** Many-to-many associative relation managing group memberships and roles (`group_id`, `user_id`, `role` [admin, moderator, member], `joined_at`).
+
+### Communication
+11. **notifications:** System and social alerts triggered by interactions (`notification_id`, `recipient_id`, `actor_id`, `notification_type`, `related_post_id`, `related_group_id`, `is_read`, `created_at`).
+12. **direct_messages:** One-to-one direct messaging between users with read receipt tracking (`message_id`, `sender_id`, `recipient_id`, `content`, `sent_at`, `read_at`).
 
 ---
 
 ## Core Application Workflows
 
-1. **User Authentication & Profile Setup:** Registers account credentials in `users` and initializes linked metadata in `user_profiles` within an atomic database transaction.
-2. **Social Connection Request Flow:** Manages friendship requests through status updates, controlling mutual access permissions.
-3. **Personalized Feed Generation:** Uses multi-table joins involving `posts`, `users`, `friendships`, and `post_likes` to compile feeds containing public posts and updates from accepted connections.
+1. **W1 — User Authentication & Profile Setup:** Registers account credentials in `users` and initializes linked metadata in `user_profiles` within an atomic database transaction.
+2. **W2 — Social Connection & Privacy-Aware Feed:** Manages friendship requests with acceptance flows; compiles personalized feeds with likes, comments, and post bookmarks (`saved_posts`).
+3. **W3 — Post Creation with Media Attachments:** Coordinates atomic inserts into `posts` and `post_media` with deferred constraint triggers ensuring non-deleted posts contain text or media attachments.
+4. **W4 — Communities & Direct Messaging:** Supports group creation (automatically assigning creator as admin), membership management, notifications, and direct messaging between users with read receipts.
 
 ---
 
