@@ -1,8 +1,11 @@
 import { Router } from 'express';
-import { register,login,me } from '../controllers/auth.controllers.js';
+import { register, login, me } from '../controllers/auth.controllers.js';
+import auth from '../middleware/auth.js';
+
 const router = Router();
+
 router.post('/register', register);
 router.post('/login', login);
-router.post('/me',me);
-//POST /api/health/register will be wired here
+router.get('/me', auth, me);
+
 export default router;
