@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import pool from '../db/pool.js';
+import jwt from 'jsonwebtoken';
 
 export const register = async(req,res) => {
     const { username, email, password, full_name} = req.body;
@@ -45,5 +46,61 @@ export const register = async(req,res) => {
         return res.status(500).json({error:'Internal server error during registration'});
     } finally{
         client.release();// always return that runner to the pool
+    }
+};
+
+export const login = async(req,res) => {
+    const {email,password} = req.body;
+
+    //validate input
+    if (!email||!password){
+        return res.status(400).json({error:'email and password are reqd'});
+    }
+
+    try{
+        const query = `
+        SELECT user_id, username, email, password_hash
+        FROM users
+        WHERE LOWER(email) = LOWER($1);
+        `;
+
+        const result = await pool.query(query, [email]);
+
+        if (result.rows.length === 0) {
+            return res.status(401).json({ error: 'invalid email or password' });
+        }
+
+        const user = result.rows[0];
+
+        // Optional status check if column exists in the future
+        if (user.account_status && user.account_status !== 'active') {
+            return res.status(403).json({ error: 'account is not active' });
+        }
+
+        //compare bcrypt passwords
+        const ismatch = await bcrypt.compare(password, user.password_hash);
+        if (!ismatch) {
+            return res.status(401).json({ error: 'invalid email or password' });
+        }
+
+        //issue jwt token
+        const token = jwt.sign(
+            { user_id: user.user_id, username: user.username },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        return res.status(200).json({
+            message: 'login successful',
+            token,
+            user: {
+                user_id: user.user_id,
+                username: user.username,
+                email: user.email,
+            }
+        });
+    } catch (err) {
+        console.error('Login error:', err);
+        return res.status(500).json({ error: 'Internal server error during login' });
     }
 };
