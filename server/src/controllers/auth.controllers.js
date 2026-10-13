@@ -104,3 +104,30 @@ export const login = async(req,res) => {
         return res.status(500).json({ error: 'Internal server error during login' });
     }
 };
+
+export const me = async(req,res) => {
+    const client = await pool.connect();
+
+    try {
+        const { user_id } = req.user; //after implementing auth middleware
+        const query = `
+        SELECT u.user_id, u.username, u.email, u.created_at,
+               p.full_name,
+               p.bio,
+               p.profile_image_url
+        FROM users u
+        LEFT JOIN user_profiles p ON u.user_id = p.user_id
+        WHERE u.user_id = $1;
+        `;
+        const result = await pool.query(query,[user_id]);
+
+        if (result.rows.length===0){
+            return res.status(404).json({error:'User not found'});
+        }
+
+        res.status(200).json({user:result.rows[0]});
+    } catch (err) {
+        console.error('Error fetching user profile:',err);
+        res.status(500).json({error:'internal server error'});
+    }
+};
