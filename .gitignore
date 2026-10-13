@@ -19,3 +19,6 @@ Thumbs.db
 # IDE / editor folders
 .vscode/
 .idea/
+
+# Agent guide (local pair programming only)
+AGENTS.md
