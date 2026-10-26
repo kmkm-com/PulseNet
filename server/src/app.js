@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import pool from './db/pool.js';
 import authRoutes from './routes/auth.routes.js';
+import postRoutes from './routes/post.routes.js';
 import {notfound, errorhandler} from './middleware/errorhandler.js';
 
 const app = express(); //initialize
@@ -12,6 +13,8 @@ app.use(express.json()); // parses incoming json request bodies to read data wit
 
 //Mount routes
 app.use('/api/auth',authRoutes)
+app.use('/api/posts', postRoutes);
+
 app.get('/api/health',async(req,res)=> {
     try{
         await pool.query('SELECT 1'); //whether database is functioning

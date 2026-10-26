@@ -71,7 +71,9 @@ CREATE TABLE posts (
     content       TEXT NOT NULL,
     privacy_level VARCHAR(15) NOT NULL DEFAULT 'public'
                       CHECK (privacy_level IN ('public', 'friends_only', 'private')),
-    created_at    TIMESTAMP DEFAULT NOW()
+    created_at    TIMESTAMP DEFAULT NOW(),
+    updated_at    TIMESTAMP DEFAULT NOW(),
+    deleted_at    TIMESTAMP DEFAULT NULL
 );
 
 -- -----------------------------------------------------------
