@@ -4,6 +4,7 @@ import pool from './db/pool.js';
 import authRoutes from './routes/auth.routes.js';
 import postRoutes from './routes/post.routes.js';
 import friendRoutes from './routes/friend.routes.js';
+import messageRoutes from './routes/message.routes.js';
 import {notfound, errorhandler} from './middleware/errorhandler.js';
 
 const app = express(); //initialize
@@ -16,6 +17,7 @@ app.use(express.json()); // parses incoming json request bodies to read data wit
 app.use('/api/auth',authRoutes)
 app.use('/api/posts', postRoutes);
 app.use('/api/friends', friendRoutes);
+app.use('/api/messages', messageRoutes);
 
 app.get('/api/health',async(req,res)=> {
     try{
