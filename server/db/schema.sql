@@ -30,7 +30,7 @@ CREATE TABLE users (
     username      VARCHAR(50)  UNIQUE NOT NULL,
     email         VARCHAR(255) UNIQUE NOT NULL,
     password_hash TEXT         NOT NULL,
-    created_at    TIMESTAMP    DEFAULT NOW()
+    created_at    TIMESTAMPTZ    DEFAULT NOW()
 );
 
 -- -----------------------------------------------------------
@@ -60,8 +60,8 @@ CREATE TABLE friendships (
     addressee_id INT  NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     status       VARCHAR(10) NOT NULL DEFAULT 'pending'
                      CHECK (status IN ('pending', 'accepted', 'declined')),
-    created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
-    responded_at TIMESTAMP NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    responded_at TIMESTAMPTZ NULL,
     PRIMARY KEY (requester_id, addressee_id),
     CONSTRAINT chk_friend_not_self
         CHECK (requester_id <> addressee_id),
@@ -84,9 +84,9 @@ CREATE TABLE posts (
     content       TEXT NOT NULL,
     privacy_level VARCHAR(15) NOT NULL DEFAULT 'public'
                       CHECK (privacy_level IN ('public', 'friends_only', 'private')),
-    created_at    TIMESTAMP DEFAULT NOW(),
-    updated_at    TIMESTAMP DEFAULT NOW(),
-    deleted_at    TIMESTAMP DEFAULT NULL
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at    TIMESTAMPTZ DEFAULT NULL
 );
 
 -- -----------------------------------------------------------
@@ -102,7 +102,7 @@ CREATE TABLE post_media (
     media_type      VARCHAR(20)  NOT NULL CHECK (media_type IN ('image', 'video')),
     mime_type       VARCHAR(100) NOT NULL,
     file_size_bytes BIGINT       NOT NULL CHECK (file_size_bytes > 0),
-    created_at      TIMESTAMP    DEFAULT NOW(),
+    created_at      TIMESTAMPTZ    DEFAULT NOW(),
     CONSTRAINT uq_post_media_bucket_path UNIQUE (storage_bucket, storage_path),
     CONSTRAINT chk_post_media_mime CHECK (
         (media_type = 'image' AND mime_type LIKE 'image/%') OR
@@ -117,7 +117,7 @@ CREATE TABLE post_media (
 CREATE TABLE post_likes (
     user_id    INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     post_id    INT NOT NULL REFERENCES posts(post_id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (user_id, post_id)
 );
 
@@ -128,7 +128,7 @@ CREATE TABLE post_likes (
 CREATE TABLE saved_posts (
     user_id    INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     post_id    INT NOT NULL REFERENCES posts(post_id) ON DELETE CASCADE,
-    saved_at   TIMESTAMP DEFAULT NOW(),
+    saved_at   TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (user_id, post_id)
 );
 
@@ -141,7 +141,7 @@ CREATE TABLE comments (
     post_id    INT  NOT NULL REFERENCES posts(post_id)  ON DELETE CASCADE,
     author_id  INT  NOT NULL REFERENCES users(user_id)  ON DELETE CASCADE,
     content    TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- -----------------------------------------------------------
@@ -153,7 +153,7 @@ CREATE TABLE groups (
     name        VARCHAR(100) NOT NULL,
     description TEXT,
     creator_id  INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    created_at  TIMESTAMP DEFAULT NOW()
+    created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- -----------------------------------------------------------
@@ -166,7 +166,7 @@ CREATE TABLE group_members (
     user_id   INT NOT NULL REFERENCES users(user_id)   ON DELETE CASCADE,
     role      VARCHAR(10) NOT NULL DEFAULT 'member'
                   CHECK (role IN ('admin', 'member')),
-    joined_at TIMESTAMP DEFAULT NOW(),
+    joined_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (group_id, user_id)
 );
 
@@ -190,7 +190,7 @@ CREATE TABLE notifications (
     related_post_id   INT  NULL     REFERENCES posts(post_id)   ON DELETE CASCADE,
     related_group_id  INT  NULL     REFERENCES groups(group_id) ON DELETE CASCADE,
     is_read           BOOLEAN   NOT NULL DEFAULT FALSE,
-    created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_notification_not_self
         CHECK (actor_id IS NULL OR actor_id <> recipient_id)
 );
@@ -205,8 +205,8 @@ CREATE TABLE direct_messages (
     sender_id    INT  NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     recipient_id INT  NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     content      TEXT NOT NULL CHECK (length(trim(content)) > 0),
-    sent_at      TIMESTAMP DEFAULT NOW(),
-    read_at      TIMESTAMP NULL,
+    sent_at      TIMESTAMPTZ DEFAULT NOW(),
+    read_at      TIMESTAMPTZ NULL,
     CONSTRAINT chk_dm_distinct_users CHECK (sender_id <> recipient_id),
     CONSTRAINT chk_dm_read_after_sent CHECK (read_at IS NULL OR read_at >= sent_at)
 );
