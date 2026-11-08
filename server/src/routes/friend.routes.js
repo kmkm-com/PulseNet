@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   listFriends,
+  listSuggestions,
   listRequests,
   getFriendshipStatus,
   sendRequest,
@@ -15,6 +16,7 @@ const router = Router();
 router.use(auth);
 
 router.get('/',                   listFriends);
+router.get('/suggestions',        listSuggestions);
 router.get('/requests',           listRequests);
 router.post('/requests/:userId',  sendRequest);
 router.patch('/requests/:userId', respondToRequest);

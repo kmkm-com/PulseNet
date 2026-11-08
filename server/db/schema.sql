@@ -226,6 +226,54 @@ CREATE INDEX idx_dm_recipient       ON direct_messages(recipient_id);
 CREATE INDEX idx_dm_conversation    ON direct_messages(sender_id, recipient_id, sent_at DESC);
 
 -- =============================================================
+-- VIEWS
+--   Reusable read-only queries. They are dropped automatically
+--   when the tables above are dropped (DROP TABLE ... CASCADE).
+-- =============================================================
+
+-- v_friend_pairs: accepted friendships listed in BOTH directions,
+-- so "friends of X" is simply WHERE user_id = X.
+CREATE OR REPLACE VIEW v_friend_pairs AS
+    SELECT requester_id AS user_id, addressee_id AS friend_id, responded_at AS friends_since
+    FROM friendships WHERE status = 'accepted'
+    UNION ALL
+    SELECT addressee_id AS user_id, requester_id AS friend_id, responded_at AS friends_since
+    FROM friendships WHERE status = 'accepted';
+
+-- v_friend_suggestions: friends-of-friends that user_id has no
+-- friendship row with yet (in any state), ranked by mutual friends.
+CREATE OR REPLACE VIEW v_friend_suggestions AS
+    SELECT f1.user_id,
+           f2.friend_id   AS suggested_user_id,
+           COUNT(*)::int  AS mutual_friends
+    FROM v_friend_pairs f1
+    JOIN v_friend_pairs f2 ON f2.user_id = f1.friend_id
+    WHERE f2.friend_id <> f1.user_id
+      AND NOT EXISTS (
+          SELECT 1 FROM friendships f
+          WHERE LEAST(f.requester_id, f.addressee_id)    = LEAST(f1.user_id, f2.friend_id)
+            AND GREATEST(f.requester_id, f.addressee_id) = GREATEST(f1.user_id, f2.friend_id)
+      )
+    GROUP BY f1.user_id, f2.friend_id;
+
+-- v_user_stats: public activity counters per user (profile pages).
+-- Correlated subqueries avoid the row multiplication that joining
+-- several one-to-many tables at once would cause.
+CREATE OR REPLACE VIEW v_user_stats AS
+    SELECT u.user_id,
+           u.username,
+           (SELECT COUNT(*) FROM v_friend_pairs fp
+             WHERE fp.user_id = u.user_id)::int                         AS friend_count,
+           (SELECT COUNT(*) FROM posts p
+             WHERE p.author_id = u.user_id AND p.deleted_at IS NULL)::int AS post_count,
+           (SELECT COUNT(*) FROM post_likes pl
+             JOIN posts p ON p.post_id = pl.post_id
+             WHERE p.author_id = u.user_id AND p.deleted_at IS NULL)::int AS likes_received,
+           (SELECT COUNT(*) FROM group_members gm
+             WHERE gm.user_id = u.user_id)::int                         AS group_count
+    FROM users u;
+
+-- =============================================================
 -- TRIGGERS: automatic notifications
 --   Notifications are generated inside the database so every
 --   write path (API, seed, manual SQL) produces them consistently.

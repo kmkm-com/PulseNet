@@ -66,6 +66,16 @@ The system features 12 core relations designed toward 3NF/BCNF compliance, organ
 
 ---
 
+## Database Views
+
+| View | Purpose |
+| --- | --- |
+| `v_friend_pairs` | Accepted friendships listed in both directions, so "friends of X" is `WHERE user_id = X`. Used by the friends list and the views below. |
+| `v_friend_suggestions` | Friends of friends with no existing friendship row (pending, declined or accepted), with a `mutual_friends` count. |
+| `v_user_stats` | Per-user counts of friends, non-deleted posts, likes received and group memberships, used on profile pages. |
+
+---
+
 ## Database Triggers
 
 Notifications are generated inside PostgreSQL by triggers (`server/db/schema.sql`), so every write path (API, seed script, manual SQL) produces them consistently. Self-actions (liking or commenting on your own post) never notify.
@@ -109,11 +119,19 @@ Base URL: `http://localhost:5000/api`. All routes except `register`, `login` and
 | PATCH | `/posts/:id` | Edit own post |
 | DELETE | `/posts/:id` | Soft-delete own post |
 
+### Users
+
+| Method | Route | Description |
+| --- | --- | --- |
+| GET | `/users?search=&limit=` | Search by username or full name; each result includes my `relationship` to them |
+| GET | `/users/:userId` | Profile with stats (friends, posts, likes received, groups), `relationship` and `mutual_friends` |
+
 ### Friends
 
 | Method | Route | Description |
 | --- | --- | --- |
 | GET | `/friends?limit=&offset=` | Accepted friends with `friends_since` |
+| GET | `/friends/suggestions?limit=` | Friends of friends, ranked by mutual friends |
 | GET | `/friends/requests?direction=incoming\|outgoing` | Pending requests to me (default) or from me |
 | GET | `/friends/status/:userId` | `none`, `friends`, `request_sent`, `request_received` or `declined` |
 | POST | `/friends/requests/:userId` | Send request (allowed again after a decline) |

@@ -36,20 +36,39 @@ export const listFriends = async (req, res, next) => {
 
   try {
     const result = await pool.query(
-      `SELECT ${USER_COLUMNS}, f.responded_at AS friends_since
-       FROM friendships f
-       JOIN users u
-         ON u.user_id = CASE WHEN f.requester_id = $1
-                             THEN f.addressee_id
-                             ELSE f.requester_id END
+      `SELECT ${USER_COLUMNS}, fp.friends_since
+       FROM v_friend_pairs fp
+       JOIN users u ON u.user_id = fp.friend_id
        LEFT JOIN user_profiles up ON up.user_id = u.user_id
-       WHERE f.status = 'accepted'
-         AND $1 IN (f.requester_id, f.addressee_id)
+       WHERE fp.user_id = $1
        ORDER BY u.username
        LIMIT $2 OFFSET $3`,
       [user_id, limit, offset]
     );
     return res.status(200).json({ friends: result.rows, limit, offset });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── GET /api/friends/suggestions?limit= ────────────────────
+// Friends of my friends I am not connected to, most mutual friends first.
+export const listSuggestions = async (req, res, next) => {
+  const user_id = req.user.user_id;
+  const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+
+  try {
+    const result = await pool.query(
+      `SELECT ${USER_COLUMNS}, s.mutual_friends
+       FROM v_friend_suggestions s
+       JOIN users u ON u.user_id = s.suggested_user_id
+       LEFT JOIN user_profiles up ON up.user_id = u.user_id
+       WHERE s.user_id = $1
+       ORDER BY s.mutual_friends DESC, u.username
+       LIMIT $2`,
+      [user_id, limit]
+    );
+    return res.status(200).json({ suggestions: result.rows });
   } catch (err) {
     next(err);
   }
