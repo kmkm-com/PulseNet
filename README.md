@@ -66,6 +66,86 @@ The system features 12 core relations designed toward 3NF/BCNF compliance, organ
 
 ---
 
+## Database Triggers
+
+Notifications are generated inside PostgreSQL by triggers (`server/db/schema.sql`), so every write path (API, seed script, manual SQL) produces them consistently. Self-actions (liking or commenting on your own post) never notify.
+
+| Trigger | Fires on | Effect |
+| --- | --- | --- |
+| `trg_friendships_notify` | `friendships` insert / status update / delete | Request sent: notify addressee (`friend_request`). Request answered: mark that notification read; if accepted, notify requester (`friend_accepted`). Pending request cancelled: remove unread notification. |
+| `trg_post_likes_notify` | `post_likes` insert / delete | Like: notify post author (`post_like`). Unlike: remove unread notification. |
+| `trg_comments_notify` | `comments` insert | Notify post author (`post_comment`). |
+| `trg_direct_messages_notify` | `direct_messages` insert / `read_at` update | Unread message: notify recipient (`direct_message`); repeated messages from the same sender collapse into one unread notification. Conversation read: mark it read. |
+
+Integrity rules enforced by the schema for the social graph:
+
+- A user cannot send a friend request to themselves (`chk_friend_not_self`).
+- Only one friendship row may exist per pair of users in either direction (`uq_friendship_pair` on `LEAST/GREATEST` of the two ids).
+- `responded_at` is set exactly when a request leaves `pending` (`chk_friend_responded_iff_not_pending`).
+- A notification's actor cannot be its recipient; `notification_type` is restricted to known types.
+
+---
+
+## API Reference
+
+Base URL: `http://localhost:5000/api`. All routes except `register`, `login` and `health` need the header `Authorization: Bearer <token>` from login.
+
+### Auth & Health
+
+| Method | Route | Description |
+| --- | --- | --- |
+| GET | `/health` | API and database status |
+| POST | `/auth/register` | Body `{ username, email, password, full_name }`; creates user + profile in one transaction |
+| POST | `/auth/login` | Body `{ email, password }`; returns JWT |
+| GET | `/auth/me` | Current user with profile |
+
+### Posts
+
+| Method | Route | Description |
+| --- | --- | --- |
+| POST | `/posts` | Body `{ content, privacy_level, media[] }` |
+| GET | `/posts/feed?limit=&offset=` | Privacy-aware feed with like and comment counts |
+| GET | `/posts/:id` | Single post with media |
+| PATCH | `/posts/:id` | Edit own post |
+| DELETE | `/posts/:id` | Soft-delete own post |
+
+### Friends
+
+| Method | Route | Description |
+| --- | --- | --- |
+| GET | `/friends?limit=&offset=` | Accepted friends with `friends_since` |
+| GET | `/friends/requests?direction=incoming\|outgoing` | Pending requests to me (default) or from me |
+| GET | `/friends/status/:userId` | `none`, `friends`, `request_sent`, `request_received` or `declined` |
+| POST | `/friends/requests/:userId` | Send request (allowed again after a decline) |
+| PATCH | `/friends/requests/:userId` | Body `{ action: "accept" \| "decline" }`; only the addressee can respond |
+| DELETE | `/friends/:userId` | Unfriend, cancel own pending request, or clear a declined one |
+
+### Direct Messages
+
+Only accepted friends can send messages to each other.
+
+| Method | Route | Description |
+| --- | --- | --- |
+| GET | `/messages` | Inbox: latest message and unread count per conversation |
+| GET | `/messages/unread-count` | Total unread messages |
+| GET | `/messages/:userId?limit=&before=` | Conversation, newest first; pass `next_before` from the previous page as `before` |
+| POST | `/messages/:userId` | Body `{ content }` (max 2000 characters) |
+| PATCH | `/messages/:userId/read` | Mark that user's messages to me as read (read receipts) |
+
+### Notifications
+
+| Method | Route | Description |
+| --- | --- | --- |
+| GET | `/notifications?unread=true&limit=&offset=` | My notifications with actor and post preview |
+| GET | `/notifications/unread-count` | Unread count for the bell badge |
+| PATCH | `/notifications/read-all` | Mark all as read |
+| PATCH | `/notifications/:id/read` | Mark one as read |
+| DELETE | `/notifications/:id` | Delete one |
+
+Errors return `{ "error": "..." }` with status 400 (bad input), 401 (missing or invalid token), 403 (not allowed), 404 (not found) or 409 (duplicate / conflicting state).
+
+---
+
 ## Current Mid-Sem Progress Summary
 
 - **Database Schema:** Formulated the ER/EER model, mapped the relational schema, and written initial PostgreSQL DDL scripts (`schema.sql`).
@@ -73,6 +153,13 @@ The system features 12 core relations designed toward 3NF/BCNF compliance, organ
 - **Authentication Layer:** Built REST endpoints for user registration and login, with password hashing using bcrypt and JWT-based authentication.
 - **Frontend Shell:** Initialized the React application with Vite, set up base client routing, and established API connection modules.
 - **Midterm Deliverables:** Compiled a 5-page Database Design Document (PDF) covering system assumptions, ER diagram, schema mapping, and normalization justifications.
+
+## Post Mid-Sem Progress
+
+- **Posts:** Create (with media, in one transaction), privacy-aware feed, view, edit and soft-delete endpoints.
+- **Social Graph:** Friend request, accept/decline, unfriend and relationship-status endpoints, with self-request and reverse-duplicate prevention enforced in the schema.
+- **Direct Messaging:** Friends-only messaging with inbox, paginated conversations, unread counts and read receipts.
+- **Notifications:** Trigger-generated notifications for friend requests, acceptances, likes, comments and messages, plus endpoints to list, count, mark read and delete them.
 
 ---
 
@@ -90,7 +177,7 @@ Replace the URL below with your actual GitHub repository URL.
 
 ```bash
 git clone https://github.com/kmkm-com/PulseNet.git
-cd your-repo-name
+cd PulseNet
 ```
 
 ### 2. Database Setup
@@ -101,11 +188,16 @@ Create a new PostgreSQL database:
 CREATE DATABASE pulsenet_db;
 ```
 
-Run the SQL schema script to create the tables:
+Run the SQL schema script to create the tables and triggers, then load the sample data:
 
 ```bash
 psql -d pulsenet_db -U postgres -f server/db/schema.sql
+psql -d pulsenet_db -U postgres -f server/db/seed.sql
 ```
+
+Both scripts can be re-run at any time, but doing so **wipes all existing data**. Re-run them after pulling any change to `schema.sql`.
+
+Seed accounts: `alice`, `bob`, `charlie`, `diana` and `evan`, each with email `<name>@example.com` and password `password123`.
 
 ### 3. Backend Setup
 
