@@ -128,12 +128,10 @@ INSERT INTO group_members (group_id, user_id, role) VALUES
 -- -----------------------------------------------------------
 -- 11. NOTIFICATIONS
 -- -----------------------------------------------------------
-INSERT INTO notifications (recipient_id, type, is_read) VALUES
-    (1, 'friend_request', FALSE),   -- Alice got a friend request
-    (2, 'post_like',      TRUE),    -- Bob's post was liked (read)
-    (3, 'comment',        FALSE),   -- Charlie got a comment notification
-    (4, 'friend_request', FALSE),   -- Diana got a request from Bob
-    (5, 'post_like',      TRUE);    -- Evan's post was liked
+-- Not inserted by hand: the triggers in schema.sql already created
+-- notifications for the pending friend request, likes and comments above.
+-- Mark the like notifications as read so the data has a read/unread mix.
+UPDATE notifications SET is_read = TRUE WHERE notification_type = 'post_like';
 
 -- -----------------------------------------------------------
 -- 12. DIRECT_MESSAGES

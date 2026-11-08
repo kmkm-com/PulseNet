@@ -173,14 +173,25 @@ CREATE TABLE group_members (
 -- -----------------------------------------------------------
 -- 11. NOTIFICATIONS
 --    recipient_id = user who should see the notification.
---    type examples: 'friend_request', 'post_like', 'comment'
+--    actor_id     = user whose action caused it (NULL for system alerts).
+--    related_post_id / related_group_id point at what it is about.
+--    Rows are created by the triggers at the bottom of this file,
+--    not by application code. Add new types to the CHECK list.
 -- -----------------------------------------------------------
 CREATE TABLE notifications (
-    notification_id SERIAL PRIMARY KEY,
-    recipient_id    INT  NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    type            VARCHAR(50) NOT NULL,
-    is_read         BOOLEAN   DEFAULT FALSE,
-    created_at      TIMESTAMP DEFAULT NOW()
+    notification_id   SERIAL PRIMARY KEY,
+    recipient_id      INT  NOT NULL REFERENCES users(user_id)   ON DELETE CASCADE,
+    actor_id          INT  NULL     REFERENCES users(user_id)   ON DELETE CASCADE,
+    notification_type VARCHAR(30) NOT NULL
+                          CHECK (notification_type IN (
+                              'friend_request', 'friend_accepted',
+                              'post_like', 'post_comment')),
+    related_post_id   INT  NULL     REFERENCES posts(post_id)   ON DELETE CASCADE,
+    related_group_id  INT  NULL     REFERENCES groups(group_id) ON DELETE CASCADE,
+    is_read           BOOLEAN   NOT NULL DEFAULT FALSE,
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_notification_not_self
+        CHECK (actor_id IS NULL OR actor_id <> recipient_id)
 );
 
 -- -----------------------------------------------------------
@@ -207,8 +218,94 @@ CREATE INDEX idx_post_media_post    ON post_media(post_id);
 CREATE INDEX idx_post_likes_post    ON post_likes(post_id);
 CREATE INDEX idx_saved_posts_post   ON saved_posts(post_id);
 CREATE INDEX idx_comments_post      ON comments(post_id);
-CREATE INDEX idx_notifications_rec  ON notifications(recipient_id);
+CREATE INDEX idx_notifications_rec  ON notifications(recipient_id, created_at DESC);
 CREATE INDEX idx_friendships_addr   ON friendships(addressee_id);
 CREATE INDEX idx_dm_sender          ON direct_messages(sender_id);
 CREATE INDEX idx_dm_recipient       ON direct_messages(recipient_id);
 CREATE INDEX idx_dm_conversation    ON direct_messages(sender_id, recipient_id, sent_at DESC);
+
+-- =============================================================
+-- TRIGGERS: automatic notifications
+--   Notifications are generated inside the database so every
+--   write path (API, seed, manual SQL) produces them consistently.
+--   Self-actions (liking/commenting on your own post) are skipped.
+--   Undoing an action (unlike, cancelling a request) removes the
+--   matching notification if it has not been read yet.
+-- =============================================================
+
+-- Friend request sent -> notify addressee.
+-- Request answered    -> mark that request notification read;
+--                        if accepted, also notify the original requester.
+-- Pending request deleted (cancelled) -> remove unread request notification.
+CREATE OR REPLACE FUNCTION fn_notify_friendship() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' AND NEW.status = 'pending' THEN
+        INSERT INTO notifications (recipient_id, actor_id, notification_type)
+        VALUES (NEW.addressee_id, NEW.requester_id, 'friend_request');
+
+    ELSIF TG_OP = 'UPDATE' AND OLD.status = 'pending' AND NEW.status <> 'pending' THEN
+        UPDATE notifications SET is_read = TRUE
+        WHERE recipient_id      = NEW.addressee_id
+          AND actor_id          = NEW.requester_id
+          AND notification_type = 'friend_request';
+
+        IF NEW.status = 'accepted' THEN
+            INSERT INTO notifications (recipient_id, actor_id, notification_type)
+            VALUES (NEW.requester_id, NEW.addressee_id, 'friend_accepted');
+        END IF;
+
+    ELSIF TG_OP = 'DELETE' AND OLD.status = 'pending' THEN
+        DELETE FROM notifications
+        WHERE recipient_id      = OLD.addressee_id
+          AND actor_id          = OLD.requester_id
+          AND notification_type = 'friend_request'
+          AND is_read = FALSE;
+    END IF;
+    RETURN NULL;  -- AFTER trigger: return value ignored
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_friendships_notify
+    AFTER INSERT OR UPDATE OF status OR DELETE ON friendships
+    FOR EACH ROW EXECUTE FUNCTION fn_notify_friendship();
+
+-- Post liked -> notify post author. Unliked -> remove unread notification.
+CREATE OR REPLACE FUNCTION fn_notify_post_like() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        INSERT INTO notifications (recipient_id, actor_id, notification_type, related_post_id)
+        SELECT p.author_id, NEW.user_id, 'post_like', NEW.post_id
+        FROM posts p
+        WHERE p.post_id = NEW.post_id
+          AND p.author_id <> NEW.user_id;
+
+    ELSIF TG_OP = 'DELETE' THEN
+        DELETE FROM notifications
+        WHERE actor_id          = OLD.user_id
+          AND related_post_id   = OLD.post_id
+          AND notification_type = 'post_like'
+          AND is_read = FALSE;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_post_likes_notify
+    AFTER INSERT OR DELETE ON post_likes
+    FOR EACH ROW EXECUTE FUNCTION fn_notify_post_like();
+
+-- Comment added -> notify post author.
+CREATE OR REPLACE FUNCTION fn_notify_comment() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO notifications (recipient_id, actor_id, notification_type, related_post_id)
+    SELECT p.author_id, NEW.author_id, 'post_comment', NEW.post_id
+    FROM posts p
+    WHERE p.post_id = NEW.post_id
+      AND p.author_id <> NEW.author_id;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_comments_notify
+    AFTER INSERT ON comments
+    FOR EACH ROW EXECUTE FUNCTION fn_notify_comment();
