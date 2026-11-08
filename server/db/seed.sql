@@ -29,11 +29,11 @@ RESTART IDENTITY CASCADE;
 -- 1. USERS  (bcrypt hash of "password123", cost=10)
 -- -----------------------------------------------------------
 INSERT INTO users (username, email, password_hash) VALUES
-    ('alice',   'alice@example.com',   '$2b$10$KIXiWfBVP.q7rRl0zjEgXOx3JGF7ND5sW6sF9TZFQM6mB0C8Vq7vy'),
-    ('bob',     'bob@example.com',     '$2b$10$KIXiWfBVP.q7rRl0zjEgXOx3JGF7ND5sW6sF9TZFQM6mB0C8Vq7vy'),
-    ('charlie', 'charlie@example.com', '$2b$10$KIXiWfBVP.q7rRl0zjEgXOx3JGF7ND5sW6sF9TZFQM6mB0C8Vq7vy'),
-    ('diana',   'diana@example.com',   '$2b$10$KIXiWfBVP.q7rRl0zjEgXOx3JGF7ND5sW6sF9TZFQM6mB0C8Vq7vy'),
-    ('evan',    'evan@example.com',    '$2b$10$KIXiWfBVP.q7rRl0zjEgXOx3JGF7ND5sW6sF9TZFQM6mB0C8Vq7vy');
+    ('alice',   'alice@example.com',   '$2b$10$6hV/jzJUWQKCVNY5WH.xsuKX.rDoiU1dV451/syHIWAqDKEpvitdm'),
+    ('bob',     'bob@example.com',     '$2b$10$6hV/jzJUWQKCVNY5WH.xsuKX.rDoiU1dV451/syHIWAqDKEpvitdm'),
+    ('charlie', 'charlie@example.com', '$2b$10$6hV/jzJUWQKCVNY5WH.xsuKX.rDoiU1dV451/syHIWAqDKEpvitdm'),
+    ('diana',   'diana@example.com',   '$2b$10$6hV/jzJUWQKCVNY5WH.xsuKX.rDoiU1dV451/syHIWAqDKEpvitdm'),
+    ('evan',    'evan@example.com',    '$2b$10$6hV/jzJUWQKCVNY5WH.xsuKX.rDoiU1dV451/syHIWAqDKEpvitdm');
 
 -- -----------------------------------------------------------
 -- 2. USER_PROFILES
