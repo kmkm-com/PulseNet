@@ -48,12 +48,13 @@ INSERT INTO user_profiles (user_id, full_name, bio, location, avatar_url) VALUES
 -- -----------------------------------------------------------
 -- 3. FRIENDSHIPS
 -- -----------------------------------------------------------
-INSERT INTO friendships (requester_id, addressee_id, status) VALUES
-    (1, 2, 'accepted'),   -- Alice & Bob are friends
-    (1, 3, 'accepted'),   -- Alice & Charlie are friends
-    (2, 4, 'pending'),    -- Bob sent request to Diana
-    (4, 5, 'accepted'),   -- Diana & Evan are friends
-    (3, 5, 'declined');   -- Charlie's request to Evan was declined
+-- responded_at must be set for accepted/declined rows and NULL for pending
+INSERT INTO friendships (requester_id, addressee_id, status, responded_at) VALUES
+    (1, 2, 'accepted', NOW()),   -- Alice & Bob are friends
+    (1, 3, 'accepted', NOW()),   -- Alice & Charlie are friends
+    (2, 4, 'pending',  NULL),    -- Bob sent request to Diana
+    (4, 5, 'accepted', NOW()),   -- Diana & Evan are friends
+    (3, 5, 'declined', NOW());   -- Charlie's request to Evan was declined
 
 -- -----------------------------------------------------------
 -- 4. POSTS

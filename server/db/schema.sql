@@ -51,15 +51,28 @@ CREATE TABLE user_profiles (
 -- 3. FRIENDSHIPS
 --    Composite PK prevents duplicate friendship requests.
 --    status can be: 'pending', 'accepted', or 'declined'.
+--    responded_at is set exactly when the request leaves 'pending'.
+--    uq_friendship_pair (below) stops the reverse duplicate:
+--    if A->B exists, B->A cannot be inserted.
 -- -----------------------------------------------------------
 CREATE TABLE friendships (
     requester_id INT  NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     addressee_id INT  NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     status       VARCHAR(10) NOT NULL DEFAULT 'pending'
                      CHECK (status IN ('pending', 'accepted', 'declined')),
-    created_at   TIMESTAMP DEFAULT NOW(),
-    PRIMARY KEY (requester_id, addressee_id)
+    created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+    responded_at TIMESTAMP NULL,
+    PRIMARY KEY (requester_id, addressee_id),
+    CONSTRAINT chk_friend_not_self
+        CHECK (requester_id <> addressee_id),
+    CONSTRAINT chk_friend_responded_iff_not_pending
+        CHECK ((status = 'pending') = (responded_at IS NULL)),
+    CONSTRAINT chk_friend_responded_after_created
+        CHECK (responded_at IS NULL OR responded_at >= created_at)
 );
+
+CREATE UNIQUE INDEX uq_friendship_pair
+    ON friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
 
 -- -----------------------------------------------------------
 -- 4. POSTS
