@@ -129,7 +129,8 @@ INSERT INTO group_members (group_id, user_id, role) VALUES
 -- 11. NOTIFICATIONS
 -- -----------------------------------------------------------
 -- Not inserted by hand: the triggers in schema.sql already created
--- notifications for the pending friend request, likes and comments above.
+-- notifications for the pending friend request, likes and comments above
+-- (and for the unread direct messages inserted below).
 -- Mark the like notifications as read so the data has a read/unread mix.
 UPDATE notifications SET is_read = TRUE WHERE notification_type = 'post_like';
 

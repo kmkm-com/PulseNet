@@ -185,7 +185,8 @@ CREATE TABLE notifications (
     notification_type VARCHAR(30) NOT NULL
                           CHECK (notification_type IN (
                               'friend_request', 'friend_accepted',
-                              'post_like', 'post_comment')),
+                              'post_like', 'post_comment',
+                              'direct_message')),
     related_post_id   INT  NULL     REFERENCES posts(post_id)   ON DELETE CASCADE,
     related_group_id  INT  NULL     REFERENCES groups(group_id) ON DELETE CASCADE,
     is_read           BOOLEAN   NOT NULL DEFAULT FALSE,
@@ -309,3 +310,37 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_comments_notify
     AFTER INSERT ON comments
     FOR EACH ROW EXECUTE FUNCTION fn_notify_comment();
+
+-- Unread message received -> notify recipient. To avoid one notification
+-- per message, an existing unread notification from the same sender is
+-- bumped to the newest time instead of adding another row.
+-- Conversation marked read -> mark that sender's message notification read.
+CREATE OR REPLACE FUNCTION fn_notify_direct_message() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' AND NEW.read_at IS NULL THEN
+        UPDATE notifications
+        SET created_at = COALESCE(NEW.sent_at, NOW())
+        WHERE recipient_id      = NEW.recipient_id
+          AND actor_id          = NEW.sender_id
+          AND notification_type = 'direct_message'
+          AND is_read = FALSE;
+
+        IF NOT FOUND THEN
+            INSERT INTO notifications (recipient_id, actor_id, notification_type, created_at)
+            VALUES (NEW.recipient_id, NEW.sender_id, 'direct_message', COALESCE(NEW.sent_at, NOW()));
+        END IF;
+
+    ELSIF TG_OP = 'UPDATE' AND OLD.read_at IS NULL AND NEW.read_at IS NOT NULL THEN
+        UPDATE notifications SET is_read = TRUE
+        WHERE recipient_id      = NEW.recipient_id
+          AND actor_id          = NEW.sender_id
+          AND notification_type = 'direct_message'
+          AND is_read = FALSE;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_direct_messages_notify
+    AFTER INSERT OR UPDATE OF read_at ON direct_messages
+    FOR EACH ROW EXECUTE FUNCTION fn_notify_direct_message();
