@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { friendsApi, usersApi } from '../api/index.js';
 import { errorMessage } from '../api/client.js';
-import { useCounts } from '../context/CountsContext.jsx';
 import PersonRow from '../components/PersonRow.jsx';
 import RelationshipButton from '../components/RelationshipButton.jsx';
 import Icon from '../components/Icon.jsx';
+import { plural } from '../lib/format.js';
 import { shortDate } from '../lib/time.js';
 
 const TABS = [
@@ -14,10 +14,21 @@ const TABS = [
   { id: 'find', label: 'Find people' },
 ];
 
+// List-state helpers: drop a person, or update their relationship
+const without = (id) => (list) => list.filter((p) => p.user_id !== id);
+const withRelationship = (id, relationship) => (list) =>
+  list.map((p) => (p.user_id === id ? { ...p, relationship } : p));
+
 export default function Friends() {
   const [params, setParams] = useSearchParams();
   const tab = TABS.some((t) => t.id === params.get('tab')) ? params.get('tab') : 'friends';
   const [incomingCount, setIncomingCount] = useState(0);
+
+  // Count for the Requests tab label; the Requests tab reports its own count
+  useEffect(() => {
+    if (tab === 'requests') return;
+    friendsApi.requests('incoming').then((d) => setIncomingCount(d.requests.length)).catch(() => {});
+  }, [tab]);
 
   return (
     <section className="page page--narrow">
@@ -34,7 +45,7 @@ export default function Friends() {
             onClick={() => setParams(t.id === 'friends' ? {} : { tab: t.id })}
           >
             {t.label}
-            {t.id === 'requests' && incomingCount > 0 && <span className="tabs__count">{incomingCount}</span>}
+            {t.id === 'requests' && incomingCount > 0 && <span className="count">{incomingCount}</span>}
           </button>
         ))}
       </div>
@@ -43,17 +54,8 @@ export default function Friends() {
         {tab === 'requests' && <Requests onIncomingCount={setIncomingCount} />}
         {tab === 'find' && <FindPeople />}
       </div>
-      {/* Keep the Requests count fresh even when another tab is open */}
-      {tab !== 'requests' && <IncomingCounter onCount={setIncomingCount} />}
     </section>
   );
-}
-
-function IncomingCounter({ onCount }) {
-  useEffect(() => {
-    friendsApi.requests('incoming').then((d) => onCount(d.requests.length)).catch(() => {});
-  }, [onCount]);
-  return null;
 }
 
 function FriendsList() {
@@ -85,7 +87,7 @@ function FriendsList() {
             compact
             userId={f.user_id}
             relationship="friends"
-            onChange={() => setFriends((list) => list.filter((x) => x.user_id !== f.user_id))}
+            onChange={() => setFriends(without(f.user_id))}
           />
         </PersonRow>
       ))}
@@ -94,7 +96,6 @@ function FriendsList() {
 }
 
 function Requests({ onIncomingCount }) {
-  const { refresh } = useCounts();
   const [incoming, setIncoming] = useState(null);
   const [outgoing, setOutgoing] = useState(null);
   const [error, setError] = useState('');
@@ -115,41 +116,30 @@ function Requests({ onIncomingCount }) {
   if (error) return <p className="form__error" role="alert">{error}</p>;
   if (incoming === null) return <p className="muted">Loading requests…</p>;
 
-  const drop = (setter, id) => setter((list) => list.filter((x) => x.user_id !== id));
-
   return (
     <>
-      <h2 className="section-title">Sent to you</h2>
-      {incoming.length === 0 ? (
-        <p className="muted section-empty">No new requests.</p>
-      ) : (
-        <ul className="rows">
-          {incoming.map((r) => (
-            <PersonRow key={r.user_id} person={r} detail={`Sent ${shortDate(r.requested_at)}`}>
-              <RelationshipButton
-                userId={r.user_id}
-                relationship="request_received"
-                onChange={() => {
-                  drop(setIncoming, r.user_id);
-                  refresh(); // answering marks the request notification read
-                }}
-              />
-            </PersonRow>
-          ))}
-        </ul>
-      )}
+      <RequestSection title="Sent to you" empty="No new requests." requests={incoming}
+        relationship="request_received" setRequests={setIncoming} />
+      <RequestSection title="Sent by you" empty="You have no pending requests." requests={outgoing}
+        relationship="request_sent" setRequests={setOutgoing} />
+    </>
+  );
+}
 
-      <h2 className="section-title">Sent by you</h2>
-      {outgoing.length === 0 ? (
-        <p className="muted section-empty">You have no pending requests.</p>
+function RequestSection({ title, empty, requests, relationship, setRequests }) {
+  return (
+    <>
+      <h2 className="section-title">{title}</h2>
+      {requests.length === 0 ? (
+        <p className="muted section-empty">{empty}</p>
       ) : (
         <ul className="rows">
-          {outgoing.map((r) => (
+          {requests.map((r) => (
             <PersonRow key={r.user_id} person={r} detail={`Sent ${shortDate(r.requested_at)}`}>
               <RelationshipButton
                 userId={r.user_id}
-                relationship="request_sent"
-                onChange={() => drop(setOutgoing, r.user_id)}
+                relationship={relationship}
+                onChange={() => setRequests(without(r.user_id))}
               />
             </PersonRow>
           ))}
@@ -186,9 +176,6 @@ function FindPeople() {
     return () => clearTimeout(id);
   }, [query]);
 
-  const updateIn = useCallback((setter) => (userId, relationship) =>
-    setter((list) => list.map((p) => (p.user_id === userId ? { ...p, relationship } : p))), []);
-
   return (
     <>
       <label className="search">
@@ -205,22 +192,9 @@ function FindPeople() {
       {error && <p className="form__error" role="alert">{error}</p>}
 
       {results !== null ? (
-        results.length === 0 ? (
-          <p className="muted section-empty">No one matches "{query.trim()}".</p>
-        ) : (
-          <ul className="rows">
-            {results.map((p) => (
-              <PersonRow key={p.user_id} person={p}>
-                <RelationshipButton
-                  compact
-                  userId={p.user_id}
-                  relationship={p.relationship}
-                  onChange={(rel) => updateIn(setResults)(p.user_id, rel)}
-                />
-              </PersonRow>
-            ))}
-          </ul>
-        )
+        results.length === 0
+          ? <p className="muted section-empty">No one matches "{query.trim()}".</p>
+          : <PeopleList people={results} setPeople={setResults} />
       ) : (
         <>
           <h2 className="section-title">People you may know</h2>
@@ -228,24 +202,32 @@ function FindPeople() {
           {suggestions?.length === 0 && (
             <p className="muted section-empty">Suggestions appear once your friends have friends you haven't met.</p>
           )}
-          <ul className="rows">
-            {suggestions?.map((p) => (
-              <PersonRow
-                key={p.user_id}
-                person={p}
-                detail={`${p.mutual_friends} mutual ${p.mutual_friends === 1 ? 'friend' : 'friends'}`}
-              >
-                <RelationshipButton
-                  compact
-                  userId={p.user_id}
-                  relationship={p.relationship}
-                  onChange={(rel) => updateIn(setSuggestions)(p.user_id, rel)}
-                />
-              </PersonRow>
-            ))}
-          </ul>
+          {suggestions && (
+            <PeopleList
+              people={suggestions}
+              setPeople={setSuggestions}
+              detail={(p) => `${plural(p.mutual_friends, 'mutual friend')}`}
+            />
+          )}
         </>
       )}
     </>
+  );
+}
+
+function PeopleList({ people, setPeople, detail }) {
+  return (
+    <ul className="rows">
+      {people.map((p) => (
+        <PersonRow key={p.user_id} person={p} detail={detail?.(p)}>
+          <RelationshipButton
+            compact
+            userId={p.user_id}
+            relationship={p.relationship}
+            onChange={(rel) => setPeople(withRelationship(p.user_id, rel))}
+          />
+        </PersonRow>
+      ))}
+    </ul>
   );
 }

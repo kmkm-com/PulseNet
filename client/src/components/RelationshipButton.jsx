@@ -11,6 +11,8 @@ export default function RelationshipButton({ userId, relationship, onChange, com
   const [error, setError] = useState('');
   const [confirmUnfriend, setConfirmUnfriend] = useState(false);
 
+  if (relationship === 'self') return null;
+
   const run = async (action, nextRelationship) => {
     setBusy(true);
     setError('');
@@ -25,57 +27,38 @@ export default function RelationshipButton({ userId, relationship, onChange, com
     }
   };
 
+  // One button that calls the API, then reports the new relationship
+  const act = (label, variant, call, next) => (
+    <button key={label} className={`button button--${variant}`} disabled={busy} onClick={() => run(call, next)}>
+      {label}
+    </button>
+  );
+
+  const remove = () => friendsApi.remove(userId);
   let buttons;
-  switch (relationship) {
-    case 'self':
-      return null;
-    case 'request_sent':
-      buttons = (
-        <button className="button button--quiet" disabled={busy}
-          onClick={() => run(() => friendsApi.remove(userId), 'none')}>
-          Cancel request
-        </button>
-      );
-      break;
-    case 'request_received':
-      buttons = (
-        <>
-          <button className="button button--primary" disabled={busy}
-            onClick={() => run(() => friendsApi.respond(userId, 'accept'), 'friends')}>
-            Accept
-          </button>
-          <button className="button button--quiet" disabled={busy}
-            onClick={() => run(() => friendsApi.respond(userId, 'decline'), 'declined')}>
-            Decline
-          </button>
-        </>
-      );
-      break;
-    case 'friends':
-      buttons = (
-        <>
-          {!compact && <Link className="button button--primary" to={`/messages/${userId}`}>Message</Link>}
-          {confirmUnfriend ? (
-            <>
-              <button className="button button--danger" disabled={busy}
-                onClick={() => run(() => friendsApi.remove(userId), 'none')}>
-                Confirm unfriend
-              </button>
-              <button className="button button--quiet" onClick={() => setConfirmUnfriend(false)}>Keep</button>
-            </>
-          ) : (
-            <button className="button button--quiet" onClick={() => setConfirmUnfriend(true)}>Unfriend</button>
-          )}
-        </>
-      );
-      break;
-    default: // 'none' or 'declined': a new request is allowed
-      buttons = (
-        <button className="button button--primary" disabled={busy}
-          onClick={() => run(() => friendsApi.send(userId), 'request_sent')}>
-          Add friend
-        </button>
-      );
+  if (relationship === 'request_sent') {
+    buttons = act('Cancel request', 'quiet', remove, 'none');
+  } else if (relationship === 'request_received') {
+    buttons = [
+      act('Accept', 'primary', () => friendsApi.respond(userId, 'accept'), 'friends'),
+      act('Decline', 'quiet', () => friendsApi.respond(userId, 'decline'), 'declined'),
+    ];
+  } else if (relationship === 'friends') {
+    buttons = (
+      <>
+        {!compact && <Link className="button button--primary" to={`/messages/${userId}`}>Message</Link>}
+        {confirmUnfriend ? (
+          <>
+            {act('Confirm unfriend', 'danger', remove, 'none')}
+            <button className="button button--quiet" onClick={() => setConfirmUnfriend(false)}>Keep</button>
+          </>
+        ) : (
+          <button className="button button--quiet" onClick={() => setConfirmUnfriend(true)}>Unfriend</button>
+        )}
+      </>
+    );
+  } else { // 'none' or 'declined': a new request is allowed
+    buttons = act('Add friend', 'primary', () => friendsApi.send(userId), 'request_sent');
   }
 
   return (

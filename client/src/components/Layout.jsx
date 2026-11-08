@@ -5,6 +5,7 @@ import Avatar from './Avatar.jsx';
 import Badge from './Badge.jsx';
 import Icon from './Icon.jsx';
 import Wordmark from './Wordmark.jsx';
+import { displayName } from '../lib/format.js';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -41,7 +42,7 @@ export default function Layout({ children }) {
         <div className="nav__me">
           <Avatar user={user} size={36} />
           <div className="nav__me-text">
-            <span className="nav__me-name">{user.full_name || user.username}</span>
+            <span className="nav__me-name">{displayName(user)}</span>
             <span className="nav__me-handle">@{user.username}</span>
           </div>
           <button className="icon-button" onClick={logout} title="Log out" aria-label="Log out">

@@ -219,11 +219,25 @@ CREATE INDEX idx_post_media_post    ON post_media(post_id);
 CREATE INDEX idx_post_likes_post    ON post_likes(post_id);
 CREATE INDEX idx_saved_posts_post   ON saved_posts(post_id);
 CREATE INDEX idx_comments_post      ON comments(post_id);
-CREATE INDEX idx_notifications_rec  ON notifications(recipient_id, created_at DESC);
+CREATE INDEX idx_group_members_user ON group_members(user_id);
 CREATE INDEX idx_friendships_addr   ON friendships(addressee_id);
-CREATE INDEX idx_dm_sender          ON direct_messages(sender_id);
+
+-- Notifications: list newest first; unread badge / mark-all-read (partial);
+-- trigger clean-up by actor/post and FK cascades
+CREATE INDEX idx_notifications_rec    ON notifications(recipient_id, created_at DESC);
+CREATE INDEX idx_notifications_unread ON notifications(recipient_id, actor_id, notification_type)
+    WHERE is_read = FALSE;
+CREATE INDEX idx_notifications_post   ON notifications(related_post_id);
+CREATE INDEX idx_notifications_actor  ON notifications(actor_id);
+-- At most one unread message notification per sender (used by the DM trigger upsert)
+CREATE UNIQUE INDEX uq_notifications_unread_dm ON notifications(recipient_id, actor_id)
+    WHERE notification_type = 'direct_message' AND is_read = FALSE;
+
+-- Direct messages: conversation pages (both directions, newest first);
+-- unread counts per recipient/sender (partial: only unread rows)
+CREATE INDEX idx_dm_conversation    ON direct_messages(sender_id, recipient_id, message_id DESC);
 CREATE INDEX idx_dm_recipient       ON direct_messages(recipient_id);
-CREATE INDEX idx_dm_conversation    ON direct_messages(sender_id, recipient_id, sent_at DESC);
+CREATE INDEX idx_dm_unread          ON direct_messages(recipient_id, sender_id) WHERE read_at IS NULL;
 
 -- =============================================================
 -- VIEWS
@@ -261,7 +275,6 @@ CREATE OR REPLACE VIEW v_friend_suggestions AS
 -- several one-to-many tables at once would cause.
 CREATE OR REPLACE VIEW v_user_stats AS
     SELECT u.user_id,
-           u.username,
            (SELECT COUNT(*) FROM v_friend_pairs fp
              WHERE fp.user_id = u.user_id)::int                         AS friend_count,
            (SELECT COUNT(*) FROM posts p
@@ -359,24 +372,18 @@ CREATE TRIGGER trg_comments_notify
     AFTER INSERT ON comments
     FOR EACH ROW EXECUTE FUNCTION fn_notify_comment();
 
--- Unread message received -> notify recipient. To avoid one notification
--- per message, an existing unread notification from the same sender is
--- bumped to the newest time instead of adding another row.
+-- Unread message received -> notify recipient. uq_notifications_unread_dm
+-- allows one unread message notification per sender, so further messages
+-- just bump its time (atomic upsert, safe for simultaneous sends).
 -- Conversation marked read -> mark that sender's message notification read.
 CREATE OR REPLACE FUNCTION fn_notify_direct_message() RETURNS TRIGGER AS $$
 BEGIN
     IF TG_OP = 'INSERT' AND NEW.read_at IS NULL THEN
-        UPDATE notifications
-        SET created_at = COALESCE(NEW.sent_at, NOW())
-        WHERE recipient_id      = NEW.recipient_id
-          AND actor_id          = NEW.sender_id
-          AND notification_type = 'direct_message'
-          AND is_read = FALSE;
-
-        IF NOT FOUND THEN
-            INSERT INTO notifications (recipient_id, actor_id, notification_type, created_at)
-            VALUES (NEW.recipient_id, NEW.sender_id, 'direct_message', COALESCE(NEW.sent_at, NOW()));
-        END IF;
+        INSERT INTO notifications (recipient_id, actor_id, notification_type, created_at)
+        VALUES (NEW.recipient_id, NEW.sender_id, 'direct_message', COALESCE(NEW.sent_at, NOW()))
+        ON CONFLICT (recipient_id, actor_id)
+            WHERE notification_type = 'direct_message' AND is_read = FALSE
+        DO UPDATE SET created_at = EXCLUDED.created_at;
 
     ELSIF TG_OP = 'UPDATE' AND OLD.read_at IS NULL AND NEW.read_at IS NOT NULL THEN
         UPDATE notifications SET is_read = TRUE

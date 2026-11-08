@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import Avatar from './Avatar.jsx';
+import { displayName } from '../lib/format.js';
 
 // One person in a list: avatar + name (linking to their profile),
 // an optional detail line, and actions on the right.
@@ -10,7 +11,7 @@ export default function PersonRow({ person, detail, children }) {
         <Avatar user={person} size={44} />
         <span className="person__text">
           <span className="person__name">
-            {person.full_name || person.username}
+            {displayName(person)}
             <span className="person__handle">@{person.username}</span>
           </span>
           {detail && <span className="person__detail">{detail}</span>}

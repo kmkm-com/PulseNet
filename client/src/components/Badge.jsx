@@ -18,7 +18,7 @@ export default function Badge({ count, label }) {
 
   if (!count) return null;
   return (
-    <span className={`badge${beat ? ' badge--beat' : ''}`} aria-label={`${count} ${label}`}>
+    <span className={`count badge${beat ? ' badge--beat' : ''}`} aria-label={`${count} ${label}`}>
       {count > 99 ? '99+' : count}
     </span>
   );

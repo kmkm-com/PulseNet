@@ -36,7 +36,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root {
     --fog: #0f1520;
     --paper: #161e2b;
     --ink: #e7edf5;
@@ -178,20 +178,23 @@ img { display: block; }
 .nav__me-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav__me-handle { color: var(--slate); font-size: var(--step--1); }
 
-.badge {
-  position: absolute;
-  top: -8px; right: -13px;
-  min-width: 19px; height: 19px;
-  padding: 0 5px;
+/* Unread count pill; .count--large in lists, .badge pins it to a nav icon */
+.count {
+  min-width: 20px;
+  padding: 0 6px;
   border-radius: 999px;
   background: var(--pulse);
   color: #fff;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  line-height: 19px;
+  line-height: 20px;
   text-align: center;
+}
+.count--large { min-width: 22px; font-size: 0.75rem; line-height: 22px; }
+.badge {
+  position: absolute;
+  top: -8px; right: -13px;
   border: 2px solid var(--paper);
-  box-sizing: content-box;
 }
 .badge--beat { animation: beat 0.7s ease-out; }
 @keyframes beat {
@@ -299,16 +302,6 @@ img { display: block; }
   white-space: nowrap;
 }
 .tabs__tab[aria-selected='true'] { color: var(--ink); border-bottom-color: var(--ink); }
-.tabs__count {
-  min-width: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--pulse);
-  color: #fff;
-  font-size: 0.72rem;
-  line-height: 20px;
-  text-align: center;
-}
 
 /* ---------- Lists of rows ---------- */
 
@@ -485,17 +478,6 @@ img { display: block; }
   white-space: nowrap;
 }
 .convo--unread .convo__preview { color: var(--ink); font-weight: 700; }
-.convo__unread {
-  min-width: 22px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--pulse);
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 22px;
-  text-align: center;
-}
 
 .picker { padding: 0 16px 12px 20px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
 .picker__list { max-height: 240px; overflow-y: auto; }
@@ -582,7 +564,6 @@ img { display: block; }
 }
 .composer textarea:focus { outline: 0; border-color: var(--ink); }
 .composer__send { width: 44px; height: 44px; min-height: 44px; padding: 0; }
-.composer__error { flex-basis: 100%; }
 
 .thread__blocked {
   display: flex;
@@ -626,13 +607,7 @@ img { display: block; }
 /* ---------- Profile ---------- */
 
 .profile { display: flex; align-items: center; gap: 24px; margin-bottom: 20px; }
-.profile__name {
-  font-family: var(--font-display);
-  font-size: var(--step-3);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-}
+.profile__name { font-weight: 800; }
 .profile__handle { color: var(--slate); font-size: var(--step-1); }
 .profile__relationship { margin-top: 8px; font-weight: 700; }
 .profile__bio { max-width: 60ch; margin-bottom: 8px; font-size: var(--step-1); line-height: 1.45; }

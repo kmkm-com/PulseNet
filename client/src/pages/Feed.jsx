@@ -4,6 +4,7 @@ import { postsApi } from '../api/index.js';
 import { errorMessage } from '../api/client.js';
 import Avatar from '../components/Avatar.jsx';
 import { timeAgo } from '../lib/time.js';
+import { plural } from '../lib/format.js';
 
 // Read-only feed so the app has a home page. Posting, likes and
 // comments belong to the engagement feature and can replace this page.
@@ -46,8 +47,7 @@ export default function Feed() {
               </p>
               <p className="post__content">{post.content}</p>
               <p className="post__stats muted">
-                {post.like_count} {Number(post.like_count) === 1 ? 'like' : 'likes'}, {post.comment_count}{' '}
-                {Number(post.comment_count) === 1 ? 'comment' : 'comments'}
+                {plural(post.like_count, 'like')}, {plural(post.comment_count, 'comment')}
               </p>
             </div>
           </li>

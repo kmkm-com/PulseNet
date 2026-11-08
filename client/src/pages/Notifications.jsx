@@ -20,7 +20,7 @@ const KINDS = {
 
 export default function Notifications() {
   const navigate = useNavigate();
-  const { notifications: unreadCount, refresh } = useCounts();
+  const { notifications: unreadCount } = useCounts();
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [items, setItems] = useState(null);
   const [hasMore, setHasMore] = useState(false);
@@ -43,10 +43,7 @@ export default function Notifications() {
   }, [load]);
 
   const open = async (n) => {
-    if (!n.is_read) {
-      await notificationsApi.markRead(n.notification_id).catch(() => {});
-      refresh();
-    }
+    if (!n.is_read) await notificationsApi.markRead(n.notification_id).catch(() => {});
     navigate(KINDS[n.notification_type]?.to(n) || '/');
   };
 
@@ -54,7 +51,6 @@ export default function Notifications() {
     try {
       await notificationsApi.remove(n.notification_id);
       setItems((cur) => cur.filter((x) => x.notification_id !== n.notification_id));
-      if (!n.is_read) refresh();
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -64,7 +60,6 @@ export default function Notifications() {
     try {
       await notificationsApi.markAllRead();
       setItems((cur) => (unreadOnly ? [] : cur.map((x) => ({ ...x, is_read: true }))));
-      refresh();
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -85,7 +80,7 @@ export default function Notifications() {
         <button role="tab" className="tabs__tab" aria-selected={!unreadOnly} onClick={() => setUnreadOnly(false)}>All</button>
         <button role="tab" className="tabs__tab" aria-selected={unreadOnly} onClick={() => setUnreadOnly(true)}>
           Unread
-          {unreadCount > 0 && <span className="tabs__count">{unreadCount}</span>}
+          {unreadCount > 0 && <span className="count">{unreadCount}</span>}
         </button>
       </div>
 

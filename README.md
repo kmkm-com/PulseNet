@@ -133,7 +133,6 @@ Base URL: `http://localhost:5000/api`. All routes except `register`, `login` and
 | GET | `/friends?limit=&offset=` | Accepted friends with `friends_since` |
 | GET | `/friends/suggestions?limit=` | Friends of friends, ranked by mutual friends |
 | GET | `/friends/requests?direction=incoming\|outgoing` | Pending requests to me (default) or from me |
-| GET | `/friends/status/:userId` | `none`, `friends`, `request_sent`, `request_received` or `declined` |
 | POST | `/friends/requests/:userId` | Send request (allowed again after a decline) |
 | PATCH | `/friends/requests/:userId` | Body `{ action: "accept" \| "decline" }`; only the addressee can respond |
 | DELETE | `/friends/:userId` | Unfriend, cancel own pending request, or clear a declined one |

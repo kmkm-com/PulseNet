@@ -7,11 +7,13 @@ import {
   markConversationRead,
 } from '../controllers/message.controllers.js';
 import auth from '../middleware/auth.js';
+import { userIdParam } from '../utils/params.js';
 
 const router = Router();
 
 // All message routes require authentication
 router.use(auth);
+router.param('userId', userIdParam({ selfMessage: 'You cannot message yourself' }));
 
 router.get('/',                listConversations);
 router.get('/unread-count',    getUnreadCount);

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { TOKEN_KEY } from '../api/client.js';
+import { LOGOUT_EVENT, TOKEN_KEY } from '../api/client.js';
 import { authApi } from '../api/index.js';
 
 const AuthContext = createContext(null);
@@ -32,8 +32,8 @@ export function AuthProvider({ children }) {
 
   // The axios interceptor fires this when the server rejects the token
   useEffect(() => {
-    window.addEventListener('pulsenet:logout', logout);
-    return () => window.removeEventListener('pulsenet:logout', logout);
+    window.addEventListener(LOGOUT_EVENT, logout);
+    return () => window.removeEventListener(LOGOUT_EVENT, logout);
   }, [logout]);
 
   const login = async (email, password) => {

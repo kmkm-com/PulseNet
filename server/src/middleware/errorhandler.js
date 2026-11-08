@@ -17,5 +17,6 @@ export function errorhandler(err,req,res,next){
     if (err.code==='entity.parse.failed'){
         return res.status(400).json({error:'malformed JSON body'}); //express's json reader shows if client sends broken json
     }
+    console.error(`${req.method} ${req.originalUrl} failed:`, err); // unexpected errors must leave a trace
     return res.status(500).json({error:'internal server error'})
 }
