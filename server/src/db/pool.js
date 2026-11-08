@@ -1,8 +1,6 @@
 //database connection pool for postgresql
 import pg from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import '../config/env.js'; // loads server/.env before the pool reads it
 
 const{Pool} = pg;
 const pool = new Pool({

@@ -1,7 +1,5 @@
-import dotenv from 'dotenv'; 
+import './config/env.js'; // loads server/.env and checks required settings; must stay first
 import app from './app.js';
-
-dotenv.config(); //reads env and loads its variables into node's process.env object
 
 const PORT = process.env.PORT || 5000;
 
