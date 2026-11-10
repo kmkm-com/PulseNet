@@ -431,6 +431,117 @@ img { display: block; }
   padding: 0 8px;
 }
 
+/* ---------- Post Composer & Actions ---------- */
+.composer {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.composer__textarea {
+  width: 100%;
+  border: none;
+  resize: vertical;
+  min-height: 70px;
+  font-family: inherit;
+  font-size: 1rem;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+}
+.composer__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.composer__privacy {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  font-size: 0.85rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.post__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 6px;
+}
+.post__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--slate);
+  font-size: 0.85rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+.post__action-btn:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.post__action-btn--liked {
+  color: #e0245e;
+}
+.post__action-btn--liked:hover {
+  color: #c81e51;
+  background: rgba(224, 36, 94, 0.08);
+}
+.post__comments {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.comment-item {
+  display: flex;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+.comment-item__body {
+  background: var(--hover);
+  padding: 8px 12px;
+  border-radius: 8px;
+  flex: 1;
+}
+.comment-item__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+  margin-bottom: 2px;
+}
+.comment-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.comment-form__input {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+
 /* ---------- Messages ---------- */
 
 .messages {

@@ -73,8 +73,12 @@ export const getFeed = async (req, res) => {
     const result = await pool.query(
       `SELECT p.post_id, p.author_id, u.username,
               p.content, p.privacy_level, p.created_at,
-              COUNT(DISTINCT pl.user_id)  AS like_count,
-              COUNT(DISTINCT c.comment_id) AS comment_count
+              COUNT(DISTINCT pl.user_id)   AS like_count,
+              COUNT(DISTINCT c.comment_id)  AS comment_count,
+              EXISTS (
+                SELECT 1 FROM post_likes my_l
+                WHERE my_l.post_id = p.post_id AND my_l.user_id = $1
+              ) AS has_liked
        FROM posts p
        JOIN users u ON u.user_id = p.author_id
        LEFT JOIN post_likes pl ON pl.post_id = p.post_id
@@ -187,3 +191,147 @@ export const deletePost = async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// ── POST /api/posts/:id/like ───────────────────────────────
+export const likePost = async (req, res) => {
+  const user_id = req.user.user_id;
+  const { id: post_id } = req.params;
+
+  try {
+    const postCheck = await pool.query(
+      `SELECT post_id FROM posts p WHERE p.post_id = $2 AND ${PRIVACY_FILTER}`,
+      [user_id, post_id]
+    );
+    if (postCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found or access denied' });
+    }
+
+    await pool.query(
+      `INSERT INTO post_likes (user_id, post_id)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id, post_id) DO NOTHING`,
+      [user_id, post_id]
+    );
+
+    return res.status(200).json({ message: 'Post liked', post_id: Number(post_id), liked: true });
+  } catch (err) {
+    console.error('likePost error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// ── DELETE /api/posts/:id/like ─────────────────────────────
+export const unlikePost = async (req, res) => {
+  const user_id = req.user.user_id;
+  const { id: post_id } = req.params;
+
+  try {
+    await pool.query(
+      `DELETE FROM post_likes WHERE user_id = $1 AND post_id = $2`,
+      [user_id, post_id]
+    );
+    return res.status(200).json({ message: 'Post unliked', post_id: Number(post_id), liked: false });
+  } catch (err) {
+    console.error('unlikePost error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// ── GET /api/posts/:id/comments ────────────────────────────
+export const getComments = async (req, res) => {
+  const user_id = req.user.user_id;
+  const { id: post_id } = req.params;
+
+  try {
+    const postCheck = await pool.query(
+      `SELECT post_id FROM posts p WHERE p.post_id = $2 AND ${PRIVACY_FILTER}`,
+      [user_id, post_id]
+    );
+    if (postCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found or access denied' });
+    }
+
+    const result = await pool.query(
+      `SELECT c.comment_id, c.post_id, c.author_id, u.username,
+              p_profile.avatar_url, c.content, c.created_at
+       FROM comments c
+       JOIN users u ON u.user_id = c.author_id
+       LEFT JOIN user_profiles p_profile ON p_profile.user_id = c.author_id
+       WHERE c.post_id = $1
+       ORDER BY c.created_at ASC`,
+      [post_id]
+    );
+
+    return res.status(200).json({ comments: result.rows });
+  } catch (err) {
+    console.error('getComments error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// ── POST /api/posts/:id/comments ───────────────────────────
+export const addComment = async (req, res) => {
+  const author_id = req.user.user_id;
+  const { id: post_id } = req.params;
+  const { content } = req.body;
+
+  if (!content || !content.trim()) {
+    return res.status(400).json({ error: 'Comment content cannot be empty' });
+  }
+
+  try {
+    const postCheck = await pool.query(
+      `SELECT post_id FROM posts p WHERE p.post_id = $2 AND ${PRIVACY_FILTER}`,
+      [author_id, post_id]
+    );
+    if (postCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found or access denied' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO comments (post_id, author_id, content)
+       VALUES ($1, $2, $3)
+       RETURNING comment_id, post_id, author_id, content, created_at`,
+      [post_id, author_id, content.trim()]
+    );
+
+    const newComment = {
+      ...result.rows[0],
+      username: req.user.username,
+      avatar_url: req.user.avatar_url || null,
+    };
+
+    return res.status(201).json({ comment: newComment });
+  } catch (err) {
+    console.error('addComment error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// ── DELETE /api/posts/:id/comments/:commentId ──────────────
+export const deleteComment = async (req, res) => {
+  const user_id = req.user.user_id;
+  const { commentId } = req.params;
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM comments c
+       USING posts p
+       WHERE c.comment_id = $1
+         AND c.post_id = p.post_id
+         AND (c.author_id = $2 OR p.author_id = $2)
+       RETURNING c.comment_id`,
+      [commentId, user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Comment not found or unauthorized' });
+    }
+
+    return res.status(200).json({ message: 'Comment deleted successfully' });
+  } catch (err) {
+    console.error('deleteComment error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+

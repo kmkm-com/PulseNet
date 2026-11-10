@@ -14,6 +14,14 @@ export const authApi = {
 
 export const postsApi = {
   feed: (params) => get('/posts/feed', params),
+  get: (id) => get(`/posts/${id}`),
+  create: (fields) => post('/posts', fields),
+  delete: (id) => del(`/posts/${id}`),
+  like: (id) => post(`/posts/${id}/like`),
+  unlike: (id) => del(`/posts/${id}/like`),
+  comments: (id) => get(`/posts/${id}/comments`),
+  addComment: (id, content) => post(`/posts/${id}/comments`, { content }),
+  deleteComment: (postId, commentId) => del(`/posts/${postId}/comments/${commentId}`),
 };
 
 export const usersApi = {
