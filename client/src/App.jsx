@@ -9,6 +9,9 @@ import Friends from './pages/Friends.jsx';
 import Messages from './pages/Messages.jsx';
 import Notifications from './pages/Notifications.jsx';
 import Profile from './pages/Profile.jsx';
+import Groups from './pages/Groups.jsx';
+import GroupDetail from './pages/GroupDetail.jsx';
+import Bookmarks from './pages/Bookmarks.jsx';
 import NotFound from './pages/NotFound.jsx';
 
 // Signed-in area: nav layout + live unread counts
@@ -43,6 +46,9 @@ export default function App() {
       </Route>
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Feed />} />
+        <Route path="/groups" element={<Groups />} />
+        <Route path="/groups/:groupId" element={<GroupDetail />} />
+        <Route path="/bookmarks" element={<Bookmarks />} />
         <Route path="/friends" element={<Friends />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/messages/:userId" element={<Messages />} />

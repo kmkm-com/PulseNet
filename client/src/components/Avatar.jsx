@@ -1,33 +1,68 @@
 import { useState } from 'react';
 import { displayName } from '../lib/format.js';
 
-// Profile photo, or initials on a tinted circle when there is none
-// (or the image fails to load). Tint is derived from the user id.
-const TINTS = ['#3D5A80', '#6A4C93', '#1B7F79', '#B5523B', '#4F6D3A', '#8A5A14'];
+// Vibrant, warm human gradients for user initials
+const GRADIENTS = [
+  'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+  'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)',
+  'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+  'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
+  'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+  'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)',
+];
 
 export default function Avatar({ user, size = 40 }) {
   const [broken, setBroken] = useState(false);
-  const initials = displayName(user)
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('');
-  const style = { width: size, height: size, fontSize: Math.round(size * 0.38) };
 
-  if (user?.avatar_url && !broken) {
+  const name = displayName(user);
+  const parts = name.trim().split(/\s+/);
+  let initials = '';
+  if (parts.length >= 2) {
+    initials = (parts[0][0] + parts[1][0]).toUpperCase();
+  } else if (name.length > 0) {
+    initials = name.slice(0, 2).toUpperCase();
+  } else {
+    initials = 'PN';
+  }
+
+  const style = {
+    width: size,
+    height: size,
+    fontSize: Math.max(11, Math.round(size * 0.38)),
+    lineHeight: `${size}px`,
+  };
+
+  // Only trust reliable Supabase or custom URLs; skip external pravatar.cc which hangs or fails
+  const isPravatar = typeof user?.avatar_url === 'string' && user.avatar_url.includes('pravatar.cc');
+  const hasValidPhoto = Boolean(user?.avatar_url) && !broken && !isPravatar;
+
+  if (hasValidPhoto) {
     return (
       <img
         className="avatar"
         src={user.avatar_url}
-        alt=""
+        alt={name}
         style={style}
         onError={() => setBroken(true)}
+        loading="lazy"
       />
     );
   }
-  const tint = TINTS[(user?.user_id ?? 0) % TINTS.length];
+
+  const seed = (user?.user_id ?? 0) + (name.charCodeAt(0) || 0);
+  const gradient = GRADIENTS[Math.abs(seed) % GRADIENTS.length];
+
   return (
-    <span className="avatar avatar--initials" style={{ ...style, background: tint }} aria-hidden="true">
+    <span
+      className="avatar avatar--initials"
+      style={{
+        ...style,
+        background: gradient,
+        boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.25)',
+      }}
+      aria-hidden="true"
+      title={name}
+    >
       {initials}
     </span>
   );

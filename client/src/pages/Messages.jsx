@@ -297,18 +297,18 @@ function Thread({ otherId }) {
           />
         </div>
       ) : (
-        <form className="composer" onSubmit={send}>
+        <form className="thread__composer" onSubmit={send}>
           <label className="visually-hidden" htmlFor="composer-input">Message</label>
           <textarea
             id="composer-input"
             rows={1}
-            placeholder="Write a message"
+            placeholder="Write a message…"
             value={draft}
             maxLength={MAX_LENGTH}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
           />
-          <button className="button button--primary composer__send" disabled={!draft.trim() || sending} aria-label="Send">
+          <button className="button button--primary thread__composer-send" disabled={!draft.trim() || sending} aria-label="Send">
             <Icon name="send" size={20} />
           </button>
           {sendError && <p className="inline-error" role="alert">{sendError}</p>}

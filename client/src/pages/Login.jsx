@@ -28,31 +28,53 @@ export default function Login() {
 
   return (
     <div className="auth">
-      <div className="auth__panel">
-        <Wordmark large />
-        <h1 className="auth__title">Log in</h1>
+      <div className="auth__card">
+        <div className="auth__brand">
+          <Wordmark large />
+        </div>
+        <h1 className="auth__title">Sign In</h1>
+        <p className="auth__desc">
+          Sign in to your PulseNet account to connect with friends and groups.
+        </p>
+
         <form className="form" onSubmit={submit}>
-          <label className="field">
-            <span className="field__label">Email</span>
-            <input type="email" autoComplete="email" required value={email}
-              onChange={(e) => setEmail(e.target.value)} />
-          </label>
-          <label className="field">
-            <span className="field__label">Password</span>
-            <input type="password" autoComplete="current-password" required value={password}
-              onChange={(e) => setPassword(e.target.value)} />
-          </label>
+          <div className="field">
+            <label className="field__label">Email Address</label>
+            <input
+              type="email"
+              className="field__input"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="alice@example.com"
+            />
+          </div>
+          <div className="field">
+            <label className="field__label">Password</label>
+            <input
+              type="password"
+              className="field__input"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••••••"
+            />
+          </div>
           {error && <p className="form__error" role="alert">{error}</p>}
-          <button className="button button--primary button--wide" disabled={busy}>
-            {busy ? 'Logging in…' : 'Log in'}
+          <button type="submit" className="button button--primary button--wide" disabled={busy}>
+            {busy ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
+
         <p className="auth__switch">
-          New to PulseNet? <Link to="/register">Create an account</Link>
+          Don't have an account? <Link to="/register" className="strong-link">Create an account</Link>
         </p>
-        <p className="auth__hint">
-          Sample account: alice@example.com with password password123
-        </p>
+        <div className="auth__demo-box">
+          <span className="auth__demo-label">Demo Credentials:</span>
+          <code>alice@example.com</code> / <code>password123</code>
+        </div>
       </div>
     </div>
   );

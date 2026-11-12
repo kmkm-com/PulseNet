@@ -28,37 +28,76 @@ export default function Register() {
 
   return (
     <div className="auth">
-      <div className="auth__panel">
-        <Wordmark large />
-        <h1 className="auth__title">Create your account</h1>
+      <div className="auth__card">
+        <div className="auth__brand">
+          <Wordmark large />
+        </div>
+        <h1 className="auth__title">Create Account</h1>
+        <p className="auth__desc">
+          Join PulseNet to connect with friends, share posts, and join groups.
+        </p>
+
         <form className="form" onSubmit={submit}>
-          <label className="field">
-            <span className="field__label">Full name</span>
-            <input autoComplete="name" required value={fields.full_name} onChange={update('full_name')} />
-          </label>
-          <label className="field">
-            <span className="field__label">Username</span>
-            <input autoComplete="username" required maxLength={50} pattern="[A-Za-z0-9_.]+"
+          <div className="field">
+            <label className="field__label">Full Name</label>
+            <input
+              type="text"
+              className="field__input"
+              autoComplete="name"
+              required
+              placeholder="e.g. Alice Sharma"
+              value={fields.full_name}
+              onChange={update('full_name')}
+            />
+          </div>
+          <div className="field">
+            <label className="field__label">Username</label>
+            <input
+              type="text"
+              className="field__input"
+              autoComplete="username"
+              required
+              maxLength={50}
+              pattern="[A-Za-z0-9_.]+"
               title="Letters, numbers, dots and underscores"
-              value={fields.username} onChange={update('username')} />
-          </label>
-          <label className="field">
-            <span className="field__label">Email</span>
-            <input type="email" autoComplete="email" required value={fields.email} onChange={update('email')} />
-          </label>
-          <label className="field">
-            <span className="field__label">Password</span>
-            <input type="password" autoComplete="new-password" required minLength={8}
-              value={fields.password} onChange={update('password')} />
-            <span className="field__help">At least 8 characters</span>
-          </label>
+              placeholder="e.g. alicesharma"
+              value={fields.username}
+              onChange={update('username')}
+            />
+          </div>
+          <div className="field">
+            <label className="field__label">Email Address</label>
+            <input
+              type="email"
+              className="field__input"
+              autoComplete="email"
+              required
+              placeholder="e.g. alice@example.com"
+              value={fields.email}
+              onChange={update('email')}
+            />
+          </div>
+          <div className="field">
+            <label className="field__label">Password</label>
+            <input
+              type="password"
+              className="field__input"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              placeholder="At least 8 characters"
+              value={fields.password}
+              onChange={update('password')}
+            />
+            <span className="field__help">Must be at least 8 characters long</span>
+          </div>
           {error && <p className="form__error" role="alert">{error}</p>}
-          <button className="button button--primary button--wide" disabled={busy}>
-            {busy ? 'Creating account…' : 'Create account'}
+          <button type="submit" className="button button--primary button--wide" disabled={busy}>
+            {busy ? 'Creating account…' : 'Create Account'}
           </button>
         </form>
         <p className="auth__switch">
-          Already have an account? <Link to="/login">Log in</Link>
+          Already have an account? <Link to="/login" className="strong-link">Sign In</Link>
         </p>
       </div>
     </div>

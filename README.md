@@ -17,13 +17,13 @@ This project is built for the DBMS Course Project to demonstrate clean relationa
 
 ## Team Members & Contributions
 
-| Name                  | Student ID   | Primary Responsibilities & Contributions                                                                                        |
-| --------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Name                  | Student ID    | Primary Responsibilities & Contributions                                                                                                           |
+| --------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Kshitij Mathur        | 2024A8PS0462H | **Lead Backend & Auth:** Server setup, Express routing, pg pool, JWT authentication, and core API endpoints (`/api/auth`, `/api/posts`). |
-| Fidel Saji            | 2024AAPS1158H | **Social Graph & Messaging:** Friend request workflows (`friendships`), notification logic, and direct messaging endpoints.     |
-| Ritika Mirium Thomas  | 2024A8PS0447H | **Engagement & Feed:** Post interactions, likes, bookmarking (`saved_posts`), comments, and feed UI components.               |
-| Yadavalli Sai Charam  | 2024A8PS0460H | **Communities & Groups:** Group creation, role-based access management (`groups`, `group_members`), and group feeds.            |
-| Shresth Prakash Singh | 2024A8PS0324H | **Database & Analytics:** Schema design, SQL migration scripts, database triggers, views, and seed data validation (500+ records). |
+| Fidel Saji            | 2024AAPS1158H | **Social Graph & Messaging:** Friend request workflows (`friendships`), notification logic, and direct messaging endpoints.                |
+| Ritika Mirium Thomas  | 2024A8PS0447H | **Engagement & Feed:** Post interactions, likes, bookmarking (`saved_posts`), comments, and feed UI components.                            |
+| Yadavalli Sai Charan  | 2024A8PS0460H | **Communities & Groups:** Group creation, role-based access management (`groups`, `group_members`), and group feeds.                     |
+| Shresth Prakash Singh | 2024A8PS0324H | **Database & Analytics:** Schema design, SQL migration scripts, database triggers, views, and seed data validation (500+ records).           |
 
 ---
 
@@ -32,26 +32,32 @@ This project is built for the DBMS Course Project to demonstrate clean relationa
 The system features 12 core relations designed toward 3NF/BCNF compliance, organized across 6 functional domains:
 
 ### Accounts & Profiles
+
 1. **users:** Secure credential storage and status tracking (`user_id`, `username`, `email`, `password_hash`, `account_status`, `created_at`, `updated_at`).
 2. **user_profiles:** One-to-one extension of users storing public profile information (`profile_id`, `user_id`, `full_name`, `bio`, `location`, `website_url`, `avatar_storage_path`).
 
 ### Social Graph
+
 3. **friendships:** Self-referential relation managing connection states (`requester_id`, `addressee_id`, `status` [pending, accepted, declined], `created_at`, `responded_at`).
 
 ### Content & Media
+
 4. **posts:** Core content storage with privacy settings and soft delete (`post_id`, `author_id`, `content`, `privacy_level` [public, friends_only, private], `created_at`, `updated_at`, `deleted_at`).
 5. **post_media:** One-to-many media attachment storage linked to posts (`media_id`, `post_id`, `storage_bucket`, `storage_path`, `media_type` [image, video], `mime_type`, `file_size_bytes`, `created_at`).
 6. **comments:** Post interactions and discussion threads (`comment_id`, `post_id`, `author_id`, `content`, `created_at`, `updated_at`).
 
 ### Engagement
+
 7. **post_likes:** Many-to-many associative relation preventing duplicate likes via composite primary key (`user_id`, `post_id`, `created_at`).
 8. **saved_posts:** Many-to-many associative relation enabling users to bookmark posts (`user_id`, `post_id`, `saved_at`).
 
 ### Communities
+
 9. **groups:** Community hubs created by users with role enforcement (`group_id`, `name`, `description`, `creator_id`, `visibility` [public, private], `created_at`).
 10. **group_members:** Many-to-many associative relation managing group memberships and roles (`group_id`, `user_id`, `role` [admin, moderator, member], `joined_at`).
 
 ### Communication
+
 11. **notifications:** System and social alerts triggered by interactions (`notification_id`, `recipient_id`, `actor_id`, `notification_type`, `related_post_id`, `related_group_id`, `is_read`, `created_at`).
 12. **direct_messages:** One-to-one direct messaging between users with read receipt tracking (`message_id`, `sender_id`, `recipient_id`, `content`, `sent_at`, `read_at`).
 
@@ -68,11 +74,11 @@ The system features 12 core relations designed toward 3NF/BCNF compliance, organ
 
 ## Database Views
 
-| View | Purpose |
-| --- | --- |
-| `v_friend_pairs` | Accepted friendships listed in both directions, so "friends of X" is `WHERE user_id = X`. Used by the friends list and the views below. |
-| `v_friend_suggestions` | Friends of friends with no existing friendship row (pending, declined or accepted), with a `mutual_friends` count. |
-| `v_user_stats` | Per-user counts of friends, non-deleted posts, likes received and group memberships, used on profile pages. |
+| View                     | Purpose                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `v_friend_pairs`       | Accepted friendships listed in both directions, so "friends of X" is `WHERE user_id = X`. Used by the friends list and the views below. |
+| `v_friend_suggestions` | Friends of friends with no existing friendship row (pending, declined or accepted), with a `mutual_friends` count.                      |
+| `v_user_stats`         | Per-user counts of friends, non-deleted posts, likes received and group memberships, used on profile pages.                               |
 
 ---
 
@@ -80,12 +86,12 @@ The system features 12 core relations designed toward 3NF/BCNF compliance, organ
 
 Notifications are generated inside PostgreSQL by triggers (`server/db/schema.sql`), so every write path (API, seed script, manual SQL) produces them consistently. Self-actions (liking or commenting on your own post) never notify.
 
-| Trigger | Fires on | Effect |
-| --- | --- | --- |
-| `trg_friendships_notify` | `friendships` insert / status update / delete | Request sent: notify addressee (`friend_request`). Request answered: mark that notification read; if accepted, notify requester (`friend_accepted`). Pending request cancelled: remove unread notification. |
-| `trg_post_likes_notify` | `post_likes` insert / delete | Like: notify post author (`post_like`). Unlike: remove unread notification. |
-| `trg_comments_notify` | `comments` insert | Notify post author (`post_comment`). |
-| `trg_direct_messages_notify` | `direct_messages` insert / `read_at` update | Unread message: notify recipient (`direct_message`); repeated messages from the same sender collapse into one unread notification. Conversation read: mark it read. |
+| Trigger                        | Fires on                                        | Effect                                                                                                                                                                                                          |
+| ------------------------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `trg_friendships_notify`     | `friendships` insert / status update / delete | Request sent: notify addressee (`friend_request`). Request answered: mark that notification read; if accepted, notify requester (`friend_accepted`). Pending request cancelled: remove unread notification. |
+| `trg_post_likes_notify`      | `post_likes` insert / delete                  | Like: notify post author (`post_like`). Unlike: remove unread notification.                                                                                                                                   |
+| `trg_comments_notify`        | `comments` insert                             | Notify post author (`post_comment`).                                                                                                                                                                          |
+| `trg_direct_messages_notify` | `direct_messages` insert / `read_at` update | Unread message: notify recipient (`direct_message`); repeated messages from the same sender collapse into one unread notification. Conversation read: mark it read.                                           |
 
 Integrity rules enforced by the schema for the social graph:
 
@@ -102,62 +108,62 @@ Base URL: `http://localhost:5000/api`. All routes except `register`, `login` and
 
 ### Auth & Health
 
-| Method | Route | Description |
-| --- | --- | --- |
-| GET | `/health` | API and database status |
-| POST | `/auth/register` | Body `{ username, email, password, full_name }`; creates user + profile in one transaction |
-| POST | `/auth/login` | Body `{ email, password }`; returns JWT |
-| GET | `/auth/me` | Current user with profile |
+| Method | Route              | Description                                                                                  |
+| ------ | ------------------ | -------------------------------------------------------------------------------------------- |
+| GET    | `/health`        | API and database status                                                                      |
+| POST   | `/auth/register` | Body `{ username, email, password, full_name }`; creates user + profile in one transaction |
+| POST   | `/auth/login`    | Body `{ email, password }`; returns JWT                                                    |
+| GET    | `/auth/me`       | Current user with profile                                                                    |
 
 ### Posts
 
-| Method | Route | Description |
-| --- | --- | --- |
-| POST | `/posts` | Body `{ content, privacy_level, media[] }` |
-| GET | `/posts/feed?limit=&offset=` | Privacy-aware feed with like and comment counts |
-| GET | `/posts/:id` | Single post with media |
-| PATCH | `/posts/:id` | Edit own post |
-| DELETE | `/posts/:id` | Soft-delete own post |
+| Method | Route                          | Description                                     |
+| ------ | ------------------------------ | ----------------------------------------------- |
+| POST   | `/posts`                     | Body `{ content, privacy_level, media[] }`    |
+| GET    | `/posts/feed?limit=&offset=` | Privacy-aware feed with like and comment counts |
+| GET    | `/posts/:id`                 | Single post with media                          |
+| PATCH  | `/posts/:id`                 | Edit own post                                   |
+| DELETE | `/posts/:id`                 | Soft-delete own post                            |
 
 ### Users
 
-| Method | Route | Description |
-| --- | --- | --- |
-| GET | `/users?search=&limit=` | Search by username or full name; each result includes my `relationship` to them |
-| GET | `/users/:userId` | Profile with stats (friends, posts, likes received, groups), `relationship` and `mutual_friends` |
+| Method | Route                     | Description                                                                                          |
+| ------ | ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| GET    | `/users?search=&limit=` | Search by username or full name; each result includes my `relationship` to them                    |
+| GET    | `/users/:userId`        | Profile with stats (friends, posts, likes received, groups), `relationship` and `mutual_friends` |
 
 ### Friends
 
-| Method | Route | Description |
-| --- | --- | --- |
-| GET | `/friends?limit=&offset=` | Accepted friends with `friends_since` |
-| GET | `/friends/suggestions?limit=` | Friends of friends, ranked by mutual friends |
-| GET | `/friends/requests?direction=incoming\|outgoing` | Pending requests to me (default) or from me |
-| POST | `/friends/requests/:userId` | Send request (allowed again after a decline) |
-| PATCH | `/friends/requests/:userId` | Body `{ action: "accept" \| "decline" }`; only the addressee can respond |
-| DELETE | `/friends/:userId` | Unfriend, cancel own pending request, or clear a declined one |
+| Method | Route                                             | Description                                                               |
+| ------ | ------------------------------------------------- | ------------------------------------------------------------------------- |
+| GET    | `/friends?limit=&offset=`                       | Accepted friends with `friends_since`                                   |
+| GET    | `/friends/suggestions?limit=`                   | Friends of friends, ranked by mutual friends                              |
+| GET    | `/friends/requests?direction=incoming\|outgoing` | Pending requests to me (default) or from me                               |
+| POST   | `/friends/requests/:userId`                     | Send request (allowed again after a decline)                              |
+| PATCH  | `/friends/requests/:userId`                     | Body `{ action: "accept" \| "decline" }`; only the addressee can respond |
+| DELETE | `/friends/:userId`                              | Unfriend, cancel own pending request, or clear a declined one             |
 
 ### Direct Messages
 
 Only accepted friends can send messages to each other.
 
-| Method | Route | Description |
-| --- | --- | --- |
-| GET | `/messages` | Inbox: latest message and unread count per conversation |
-| GET | `/messages/unread-count` | Total unread messages |
-| GET | `/messages/:userId?limit=&before=` | Conversation, newest first; pass `next_before` from the previous page as `before` |
-| POST | `/messages/:userId` | Body `{ content }` (max 2000 characters) |
-| PATCH | `/messages/:userId/read` | Mark that user's messages to me as read (read receipts) |
+| Method | Route                                | Description                                                                           |
+| ------ | ------------------------------------ | ------------------------------------------------------------------------------------- |
+| GET    | `/messages`                        | Inbox: latest message and unread count per conversation                               |
+| GET    | `/messages/unread-count`           | Total unread messages                                                                 |
+| GET    | `/messages/:userId?limit=&before=` | Conversation, newest first; pass `next_before` from the previous page as `before` |
+| POST   | `/messages/:userId`                | Body `{ content }` (max 2000 characters)                                            |
+| PATCH  | `/messages/:userId/read`           | Mark that user's messages to me as read (read receipts)                               |
 
 ### Notifications
 
-| Method | Route | Description |
-| --- | --- | --- |
-| GET | `/notifications?unread=true&limit=&offset=` | My notifications with actor and post preview |
-| GET | `/notifications/unread-count` | Unread count for the bell badge |
-| PATCH | `/notifications/read-all` | Mark all as read |
-| PATCH | `/notifications/:id/read` | Mark one as read |
-| DELETE | `/notifications/:id` | Delete one |
+| Method | Route                                         | Description                                  |
+| ------ | --------------------------------------------- | -------------------------------------------- |
+| GET    | `/notifications?unread=true&limit=&offset=` | My notifications with actor and post preview |
+| GET    | `/notifications/unread-count`               | Unread count for the bell badge              |
+| PATCH  | `/notifications/read-all`                   | Mark all as read                             |
+| PATCH  | `/notifications/:id/read`                   | Mark one as read                             |
+| DELETE | `/notifications/:id`                        | Delete one                                   |
 
 Errors return `{ "error": "..." }` with status 400 (bad input), 401 (missing or invalid token), 403 (not allowed), 404 (not found) or 409 (duplicate / conflicting state).
 

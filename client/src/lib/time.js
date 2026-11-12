@@ -27,7 +27,9 @@ export function messageTime(value) {
 
 // "8 Nov", or "8 Nov 2025" when not this year.
 export function shortDate(value) {
+  if (!value) return '';
   const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
   const sameYear = d.getFullYear() === new Date().getFullYear();
   return d.toLocaleDateString(undefined, sameYear ? SHORT_DATE : { ...SHORT_DATE, year: 'numeric' });
 }

@@ -71,16 +71,19 @@ export default function Notifications() {
   return (
     <section className="page page--narrow">
       <header className="page__header page__header--split">
-        <h1 className="page__title">Notifications</h1>
+        <div>
+          <h1 className="page__title">Notifications</h1>
+          <p className="page__subtitle">Updates and activity from your friends</p>
+        </div>
         <button className="button button--quiet" onClick={markAll} disabled={!unreadCount}>
-          Mark all as read
+          Mark All Read
         </button>
       </header>
       <div className="tabs" role="tablist" aria-label="Filter notifications">
         <button role="tab" className="tabs__tab" aria-selected={!unreadOnly} onClick={() => setUnreadOnly(false)}>All</button>
         <button role="tab" className="tabs__tab" aria-selected={unreadOnly} onClick={() => setUnreadOnly(true)}>
           Unread
-          {unreadCount > 0 && <span className="count">{unreadCount}</span>}
+          {unreadCount > 0 && <span className="count-pill" style={{ marginLeft: '6px' }}>{unreadCount}</span>}
         </button>
       </div>
 
@@ -88,8 +91,8 @@ export default function Notifications() {
       {items === null && !error && <p className="muted">Loading notifications…</p>}
       {items?.length === 0 && (
         <div className="empty">
-          <p>{unreadOnly ? "You're all caught up." : 'No notifications yet. Activity from friends shows up here.'}</p>
-          {!unreadOnly && <Link className="button button--primary" to="/friends?tab=find">Find people</Link>}
+          <p>{unreadOnly ? "You're all caught up." : 'No notifications yet. Activity from friends will appear here.'}</p>
+          {!unreadOnly && <Link className="button button--primary" to="/friends?tab=find">Find Friends</Link>}
         </div>
       )}
 
@@ -107,8 +110,8 @@ export default function Notifications() {
 
 function Group({ title, items, onOpen, onRemove }) {
   return (
-    <>
-      <h2 className="section-title">{title}</h2>
+    <div style={{ marginBottom: '28px' }}>
+      <h2 className="section-title" style={{ marginBottom: '12px' }}>{title}</h2>
       <ul className="rows">
         {items.map((n) => {
           const kind = KINDS[n.notification_type];
@@ -116,25 +119,24 @@ function Group({ title, items, onOpen, onRemove }) {
           return (
             <li key={n.notification_id} className={`note${n.is_read ? '' : ' note--unread'}`}>
               <button className="note__main" onClick={() => onOpen(n)}>
-                <Avatar user={actor} size={40} />
+                <Avatar user={actor} size={38} />
                 <span className="note__text">
-                  <span>
-                    <strong>{n.actor_username || 'Someone'}</strong> {kind?.text || 'did something'}
+                  <span className="note__headline">
+                    <strong className="note__actor">{n.actor_username || 'Someone'}</strong> {kind?.text || 'acted'}
                   </span>
                   {n.post_preview && <span className="note__preview">“{n.post_preview}”</span>}
                   <span className="note__time">
                     {timeAgo(n.created_at)}
-                    {!n.is_read && <span className="visually-hidden">, unread</span>}
                   </span>
                 </span>
               </button>
               <button className="icon-button note__remove" onClick={() => onRemove(n)} aria-label="Delete notification" title="Delete">
-                <Icon name="close" size={18} />
+                <Icon name="close" size={16} />
               </button>
             </li>
           );
         })}
       </ul>
-    </>
+    </div>
   );
 }
