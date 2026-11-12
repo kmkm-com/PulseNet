@@ -34,6 +34,7 @@ router.post('/media/upload', upload.single('file'), uploadMedia);
 
 // Bookmarks
 router.get('/bookmarks/all', getSavedPosts);
+router.get('/saved', getSavedPosts);
 router.post('/:id/bookmark', savePost);
 router.delete('/:id/bookmark', unsavePost);
 

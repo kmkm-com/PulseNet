@@ -101,6 +101,10 @@ export const getGroupById = async (req, res) => {
   const user_id = req.user.user_id;
   const groupId = parseInt(req.params.id, 10);
 
+  if (isNaN(groupId)) {
+    return res.status(404).json({ error: 'Group not found' });
+  }
+
   try {
     const result = await pool.query(
       `SELECT g.group_id, g.name, g.description, g.visibility, g.creator_id, g.created_at,

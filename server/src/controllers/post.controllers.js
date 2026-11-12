@@ -172,6 +172,10 @@ export const getPostById = async (req, res) => {
   const user_id = req.user.user_id;
   const { id } = req.params;
 
+  if (isNaN(parseInt(id, 10))) {
+    return res.status(404).json({ error: 'Post not found' });
+  }
+
   try {
     const result = await pool.query(
       `SELECT p.post_id, p.author_id, p.group_id, u.username, prof.full_name, prof.avatar_url,
