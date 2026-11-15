@@ -6,6 +6,9 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABAS
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Public URL of a file in a public bucket (built locally, no network call)
+export const publicUrl = (bucket, path) => supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+
 /**
  * Upload buffer to Supabase Storage bucket
  */

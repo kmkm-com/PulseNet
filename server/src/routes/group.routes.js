@@ -14,11 +14,15 @@ import {
 } from '../controllers/group.controllers.js';
 import { createPost } from '../controllers/post.controllers.js';
 import auth from '../middleware/auth.js';
+import { idParam, userIdParam } from '../utils/params.js';
 
 const router = Router();
 
 // all groups require auth
 router.use(auth);
+// :id is stored as req.idParam and :userId as req.otherId (both must be positive numbers)
+router.param('id', idParam('group'));
+router.param('userId', userIdParam());
 
 router.post('/', createGroup);
 router.get('/', listGroups);
@@ -37,9 +41,9 @@ router.delete('/:id/members/:userId', removeMember);
 
 // Group feed and posting
 router.get('/:id/posts', getGroupPosts);
-router.post('/:id/posts', (req, res, next) => {
-  req.body.group_id = parseInt(req.params.id, 10);
-  return createPost(req, res, next);
+router.post('/:id/posts', (req, res) => {
+  req.body.group_id = req.idParam;
+  return createPost(req, res);
 });
 
 export default router;

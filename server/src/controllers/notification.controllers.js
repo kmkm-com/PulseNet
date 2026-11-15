@@ -51,9 +51,8 @@ export const markAllRead = async (req, res) => {
   return res.status(200).json({ marked_read: result.rowCount });
 };
 
-//PATCH /api/notifications/:id/read 
-//export const markOneRead = async (req, res) => 
-  {
+//PATCH /api/notifications/:id/read
+export const markOneRead = async (req, res) => {
   const result = await pool.query(
     `UPDATE notifications SET is_read = TRUE
      WHERE notification_id = $1 AND recipient_id = $2
@@ -66,9 +65,8 @@ export const markAllRead = async (req, res) => {
   return res.status(200).json({ notification: result.rows[0] });
 };
 
-//DELETE /api/notifications/:id 
-//export const deleteNotification = async (req, res) => 
-  {
+//DELETE /api/notifications/:id
+export const deleteNotification = async (req, res) => {
   const result = await pool.query(
     `DELETE FROM notifications
      WHERE notification_id = $1 AND recipient_id = $2

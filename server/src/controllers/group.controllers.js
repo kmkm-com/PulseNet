@@ -1,496 +1,269 @@
 import pool from '../db/pool.js';
+import { findPosts, getMembership, canModerate } from '../db/queries.js';
+import { parsePaging } from '../utils/params.js';
 
-/**
- * Helper: check group membership and role
- */
-async function getMembership(groupId, userId) {
-  const result = await pool.query(
-    `SELECT role, status, joined_at
-     FROM group_members
-     WHERE group_id = $1 AND user_id = $2`,
-    [groupId, userId]
+// :id is checked in group.routes.js and stored as req.idParam;
+// :userId is stored as req.otherId.
+// Express 5 passes errors from these async handlers to errorhandler.js,
+// so they don't need their own try/catch.
+
+const isActive = (m) => m?.status === 'active';
+const isAdmin = (m) => isActive(m) && m.role === 'admin';
+
+// Group details plus member count and the viewer's ($1) role and status (alias g)
+const GROUP_SELECT = `
+  SELECT g.group_id, g.name, g.description, g.visibility, g.creator_id, g.created_at,
+         (SELECT username FROM users WHERE user_id = g.creator_id) AS creator_username,
+         (SELECT COUNT(*) FROM group_members gm
+           WHERE gm.group_id = g.group_id AND gm.status = 'active')::int AS member_count,
+         me.role   AS user_role,
+         me.status AS membership_status
+  FROM groups g
+  LEFT JOIN group_members me ON me.group_id = g.group_id AND me.user_id = $1`;
+
+// True if the group has only one active admin left
+async function isLastAdmin(groupId) {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS admins FROM group_members
+     WHERE group_id = $1 AND role = 'admin' AND status = 'active'`,
+    [groupId]
   );
-  return result.rows[0] || null;
+  return rows[0].admins <= 1;
 }
 
-/**
- * POST /api/groups
- * Create group (creator becomes admin automatically via database trigger)
- */
-export const createGroup = async (req, res) => {
-  const creator_id = req.user.user_id;
-  const { name, description, visibility = 'public' } = req.body;
+// Why the user may not see a group's members or posts, or null if they may:
+// the group must exist, and private groups are for active members only
+async function accessError(groupId, userId) {
+  const { rows } = await pool.query('SELECT visibility FROM groups WHERE group_id = $1', [groupId]);
+  if (rows.length === 0) {
+    return { status: 404, error: 'Group not found' };
+  }
+  if (rows[0].visibility === 'private' && !isActive(await getMembership(groupId, userId))) {
+    return { status: 403, error: 'Only active members can see this private group' };
+  }
+  return null;
+}
 
-  if (!name || !name.trim()) {
+// ── Groups ─────────────────────────────────────────────────
+
+// POST /api/groups   Body: { name, description?, visibility? }
+// A database trigger makes the creator the group's admin.
+export const createGroup = async (req, res) => {
+  const { name, description, visibility = 'public' } = req.body;
+  if (!name?.trim()) {
     return res.status(400).json({ error: 'Group name is required' });
   }
-
   if (!['public', 'private'].includes(visibility)) {
     return res.status(400).json({ error: 'Visibility must be either public or private' });
   }
 
-  try {
-    const result = await pool.query(
-      `INSERT INTO groups (name, description, creator_id, visibility)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [name.trim(), description ? description.trim() : null, creator_id, visibility]
-    );
-
-    const group = result.rows[0];
-    return res.status(201).json({
-      message: 'Group created successfully',
-      group: {
-        ...group,
-        member_count: 1,
-        user_role: 'admin',
-        membership_status: 'active',
-      },
-    });
-  } catch (err) {
-    console.error('createGroup error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+  const { rows } = await pool.query(
+    `INSERT INTO groups (name, description, creator_id, visibility)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [name.trim(), description?.trim() || null, req.user.user_id, visibility]
+  );
+  return res.status(201).json({
+    message: 'Group created successfully',
+    group: { ...rows[0], member_count: 1, user_role: 'admin', membership_status: 'active' },
+  });
 };
 
-/**
- * GET /api/groups
- * Discover accessible groups (public groups or private groups the user is a member of)
- */
+// GET /api/groups?search=
+// Public groups plus the private groups I belong to, biggest first
 export const listGroups = async (req, res) => {
-  const user_id = req.user.user_id;
+  const params = [req.user.user_id];
+  let where = "(g.visibility = 'public' OR me.user_id IS NOT NULL)";
   const search = req.query.search?.trim();
-
-  try {
-    let query = `
-      SELECT g.group_id, g.name, g.description, g.visibility, g.creator_id, g.created_at,
-             COUNT(DISTINCT gm.user_id) FILTER (WHERE gm.status = 'active')::int AS member_count,
-             my_m.role   AS user_role,
-             my_m.status AS membership_status
-      FROM groups g
-      LEFT JOIN group_members gm ON gm.group_id = g.group_id
-      LEFT JOIN group_members my_m ON my_m.group_id = g.group_id AND my_m.user_id = $1
-      WHERE (g.visibility = 'public' OR my_m.user_id IS NOT NULL)
-    `;
-    const params = [user_id];
-
-    if (search) {
-      query += ` AND (g.name ILIKE $2 OR g.description ILIKE $2)`;
-      params.push(`%${search}%`);
-    }
-
-    query += `
-      GROUP BY g.group_id, my_m.role, my_m.status
-      ORDER BY member_count DESC, g.created_at DESC
-      LIMIT 50;
-    `;
-
-    const result = await pool.query(query, params);
-    return res.status(200).json({ groups: result.rows });
-  } catch (err) {
-    console.error('listGroups error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+  if (search) {
+    params.push(`%${search}%`);
+    where += ' AND (g.name ILIKE $2 OR g.description ILIKE $2)';
   }
+
+  const { rows } = await pool.query(
+    `${GROUP_SELECT} WHERE ${where} ORDER BY member_count DESC, g.created_at DESC LIMIT 50`,
+    params
+  );
+  return res.status(200).json({ groups: rows });
 };
 
-/**
- * GET /api/groups/:id
- * Get single group details
- */
+// GET /api/groups/:id
+// Non-members of a private group only get the basics, with is_restricted: true
 export const getGroupById = async (req, res) => {
-  const user_id = req.user.user_id;
-  const groupId = parseInt(req.params.id, 10);
-
-  if (isNaN(groupId)) {
+  const { rows } = await pool.query(`${GROUP_SELECT} WHERE g.group_id = $2`, [req.user.user_id, req.idParam]);
+  const group = rows[0];
+  if (!group) {
     return res.status(404).json({ error: 'Group not found' });
   }
 
-  try {
-    const result = await pool.query(
-      `SELECT g.group_id, g.name, g.description, g.visibility, g.creator_id, g.created_at,
-              u.username AS creator_username,
-              COUNT(DISTINCT gm.user_id) FILTER (WHERE gm.status = 'active')::int AS member_count,
-              my_m.role   AS user_role,
-              my_m.status AS membership_status
-       FROM groups g
-       JOIN users u ON u.user_id = g.creator_id
-       LEFT JOIN group_members gm ON gm.group_id = g.group_id
-       LEFT JOIN group_members my_m ON my_m.group_id = g.group_id AND my_m.user_id = $1
-       WHERE g.group_id = $2
-       GROUP BY g.group_id, u.username, my_m.role, my_m.status`,
-      [user_id, groupId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Group not found' });
-    }
-
-    const group = result.rows[0];
-
-    // Privacy rule: private group content is hidden if not an active member
-    if (group.visibility === 'private' && group.membership_status !== 'active') {
-      return res.status(200).json({
-        group: {
-          group_id: group.group_id,
-          name: group.name,
-          description: group.description,
-          visibility: group.visibility,
-          member_count: group.member_count,
-          membership_status: group.membership_status,
-          user_role: group.user_role,
-          is_restricted: true,
-        },
-      });
-    }
-
-    return res.status(200).json({ group });
-  } catch (err) {
-    console.error('getGroupById error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+  if (group.visibility === 'private' && group.membership_status !== 'active') {
+    const { group_id, name, description, visibility, member_count, membership_status, user_role } = group;
+    return res.status(200).json({
+      group: { group_id, name, description, visibility, member_count, membership_status, user_role, is_restricted: true },
+    });
   }
+  return res.status(200).json({ group });
 };
 
-/**
- * PATCH /api/groups/:id
- * Update group name, description, visibility (admin only)
- */
+// PATCH /api/groups/:id   Body: { name?, description?, visibility? }  (admins only)
 export const updateGroup = async (req, res) => {
-  const user_id = req.user.user_id;
-  const groupId = parseInt(req.params.id, 10);
-  const { name, description, visibility } = req.body;
-
-  try {
-    const membership = await getMembership(groupId, user_id);
-    if (!membership || membership.role !== 'admin' || membership.status !== 'active') {
-      return res.status(403).json({ error: 'Only group admins can update group settings' });
-    }
-
-    const result = await pool.query(
-      `UPDATE groups
-       SET name = COALESCE($1, name),
-           description = COALESCE($2, description),
-           visibility = COALESCE($3, visibility),
-           updated_at = NOW()
-       WHERE group_id = $4
-       RETURNING *`,
-      [name ? name.trim() : null, description !== undefined ? description : null, visibility || null, groupId]
-    );
-
-    return res.status(200).json({ message: 'Group updated successfully', group: result.rows[0] });
-  } catch (err) {
-    console.error('updateGroup error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+  if (!isAdmin(await getMembership(req.idParam, req.user.user_id))) {
+    return res.status(403).json({ error: 'Only group admins can update group settings' });
   }
+
+  const { name, description, visibility } = req.body;
+  const { rows } = await pool.query(
+    `UPDATE groups
+     SET name = COALESCE($1, name),
+         description = COALESCE($2, description),
+         visibility = COALESCE($3, visibility),
+         updated_at = NOW()
+     WHERE group_id = $4
+     RETURNING *`,
+    [name?.trim() || null, description ?? null, visibility || null, req.idParam]
+  );
+  return res.status(200).json({ message: 'Group updated successfully', group: rows[0] });
 };
 
-/**
- * DELETE /api/groups/:id
- * Delete group (creator or admin only)
- */
+// DELETE /api/groups/:id   (creator or admin)
 export const deleteGroup = async (req, res) => {
   const user_id = req.user.user_id;
-  const groupId = parseInt(req.params.id, 10);
-
-  try {
-    const groupRes = await pool.query(`SELECT creator_id FROM groups WHERE group_id = $1`, [groupId]);
-    if (groupRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Group not found' });
-    }
-
-    const membership = await getMembership(groupId, user_id);
-    if (groupRes.rows[0].creator_id !== user_id && (!membership || membership.role !== 'admin')) {
-      return res.status(403).json({ error: 'Unauthorized to delete this group' });
-    }
-
-    await pool.query(`DELETE FROM groups WHERE group_id = $1`, [groupId]);
-    return res.status(200).json({ message: 'Group deleted successfully' });
-  } catch (err) {
-    console.error('deleteGroup error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+  const { rows } = await pool.query('SELECT creator_id FROM groups WHERE group_id = $1', [req.idParam]);
+  if (rows.length === 0) {
+    return res.status(404).json({ error: 'Group not found' });
   }
+  if (rows[0].creator_id !== user_id && !isAdmin(await getMembership(req.idParam, user_id))) {
+    return res.status(403).json({ error: 'Unauthorized to delete this group' });
+  }
+
+  await pool.query('DELETE FROM groups WHERE group_id = $1', [req.idParam]);
+  return res.status(200).json({ message: 'Group deleted successfully' });
 };
 
-/**
- * POST /api/groups/:id/join
- * Join public group immediately or request to join private group
- */
+// ── Membership ─────────────────────────────────────────────
+
+// POST /api/groups/:id/join
+// Public group: join straight away. Private group: request to join (pending).
 export const joinGroup = async (req, res) => {
-  const user_id = req.user.user_id;
-  const groupId = parseInt(req.params.id, 10);
-
-  try {
-    const groupRes = await pool.query(`SELECT visibility FROM groups WHERE group_id = $1`, [groupId]);
-    if (groupRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Group not found' });
-    }
-
-    const visibility = groupRes.rows[0].visibility;
-    const initialStatus = visibility === 'public' ? 'active' : 'pending';
-
-    const result = await pool.query(
-      `INSERT INTO group_members (group_id, user_id, role, status, joined_at)
-       VALUES ($1, $2, 'member', $3, NOW())
-       ON CONFLICT (group_id, user_id) DO UPDATE SET
-         status = CASE WHEN group_members.status = 'pending' THEN EXCLUDED.status ELSE group_members.status END
-       RETURNING *`,
-      [groupId, user_id, initialStatus]
-    );
-
-    const message = initialStatus === 'active' ? 'Joined group successfully' : 'Membership request submitted';
-    return res.status(200).json({ message, membership: result.rows[0] });
-  } catch (err) {
-    console.error('joinGroup error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+  const { rows } = await pool.query('SELECT visibility FROM groups WHERE group_id = $1', [req.idParam]);
+  if (rows.length === 0) {
+    return res.status(404).json({ error: 'Group not found' });
   }
+  const status = rows[0].visibility === 'public' ? 'active' : 'pending';
+
+  // Re-joining: a pending request may become active; an existing member is left unchanged
+  const result = await pool.query(
+    `INSERT INTO group_members (group_id, user_id, role, status)
+     VALUES ($1, $2, 'member', $3)
+     ON CONFLICT (group_id, user_id) DO UPDATE SET
+       status = CASE WHEN group_members.status = 'pending' THEN EXCLUDED.status ELSE group_members.status END
+     RETURNING *`,
+    [req.idParam, req.user.user_id, status]
+  );
+  const message = status === 'active' ? 'Joined group successfully' : 'Membership request submitted';
+  return res.status(200).json({ message, membership: result.rows[0] });
 };
 
-/**
- * DELETE /api/groups/:id/leave
- * Leave group
- */
+// DELETE /api/groups/:id/leave   (the last admin cannot leave)
 export const leaveGroup = async (req, res) => {
-  const user_id = req.user.user_id;
-  const groupId = parseInt(req.params.id, 10);
-
-  try {
-    const membership = await getMembership(groupId, user_id);
-    if (!membership) {
-      return res.status(400).json({ error: 'You are not a member of this group' });
-    }
-
-    // Check if user is the last active admin
-    if (membership.role === 'admin') {
-      const adminCountRes = await pool.query(
-        `SELECT COUNT(*)::int AS count FROM group_members WHERE group_id = $1 AND role = 'admin' AND status = 'active'`,
-        [groupId]
-      );
-      if (adminCountRes.rows[0].count <= 1) {
-        return res.status(400).json({
-          error: 'You are the only active admin. Promote another member to admin before leaving, or delete the group.',
-        });
-      }
-    }
-
-    await pool.query(`DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`, [groupId, user_id]);
-    return res.status(200).json({ message: 'Left group successfully' });
-  } catch (err) {
-    console.error('leaveGroup error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+  const me = await getMembership(req.idParam, req.user.user_id);
+  if (!me) {
+    return res.status(400).json({ error: 'You are not a member of this group' });
   }
-};
-
-/**
- * GET /api/groups/:id/members
- * List members of a group
- */
-export const listGroupMembers = async (req, res) => {
-  const user_id = req.user.user_id;
-  const groupId = parseInt(req.params.id, 10);
-
-  try {
-    const groupRes = await pool.query(`SELECT visibility FROM groups WHERE group_id = $1`, [groupId]);
-    if (groupRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Group not found' });
-    }
-
-    const membership = await getMembership(groupId, user_id);
-    if (groupRes.rows[0].visibility === 'private' && (!membership || membership.status !== 'active')) {
-      return res.status(403).json({ error: 'Must be an active member to view member list of private group' });
-    }
-
-    const result = await pool.query(
-      `SELECT gm.group_id, gm.user_id, gm.role, gm.status, gm.joined_at,
-              u.username, u.email, prof.full_name, prof.avatar_url
-       FROM group_members gm
-       JOIN users u ON u.user_id = gm.user_id
-       LEFT JOIN user_profiles prof ON prof.user_id = gm.user_id
-       WHERE gm.group_id = $1
-       ORDER BY 
-         CASE gm.role WHEN 'admin' THEN 1 WHEN 'moderator' THEN 2 ELSE 3 END,
-         gm.joined_at ASC`,
-      [groupId]
-    );
-
-    return res.status(200).json({ members: result.rows });
-  } catch (err) {
-    console.error('listGroupMembers error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-/**
- * PATCH /api/groups/:id/members/:userId
- * Update member role or status (Approve request, Promote/Demote)
- */
-export const updateMemberRole = async (req, res) => {
-  const currentUserId = req.user.user_id;
-  const groupId = parseInt(req.params.id, 10);
-  const targetUserId = parseInt(req.params.userId, 10);
-  const { role, status } = req.body;
-
-  try {
-    const callerMembership = await getMembership(groupId, currentUserId);
-    if (!callerMembership || callerMembership.status !== 'active' || !['admin', 'moderator'].includes(callerMembership.role)) {
-      return res.status(403).json({ error: 'Admin or Moderator privileges required' });
-    }
-
-    const targetMembership = await getMembership(groupId, targetUserId);
-    if (!targetMembership) {
-      return res.status(404).json({ error: 'Member record not found' });
-    }
-
-    // Role changes require Admin
-    if (role && role !== targetMembership.role) {
-      if (callerMembership.role !== 'admin') {
-        return res.status(403).json({ error: 'Only admins can change member roles' });
-      }
-
-      // Check demoting last admin
-      if (targetMembership.role === 'admin' && role !== 'admin') {
-        const adminCountRes = await pool.query(
-          `SELECT COUNT(*)::int AS count FROM group_members WHERE group_id = $1 AND role = 'admin' AND status = 'active'`,
-          [groupId]
-        );
-        if (adminCountRes.rows[0].count <= 1) {
-          return res.status(400).json({ error: 'Cannot demote the last active admin of the group' });
-        }
-      }
-    }
-
-    const updateResult = await pool.query(
-      `UPDATE group_members
-       SET role = COALESCE($1, role),
-           status = COALESCE($2, status)
-       WHERE group_id = $3 AND user_id = $4
-       RETURNING *`,
-      [role || null, status || null, groupId, targetUserId]
-    );
-
-    return res.status(200).json({
-      message: 'Member status updated successfully',
-      member: updateResult.rows[0],
+  if (isAdmin(me) && (await isLastAdmin(req.idParam))) {
+    return res.status(400).json({
+      error: 'You are the only active admin. Promote another member to admin before leaving, or delete the group.',
     });
-  } catch (err) {
-    console.error('updateMemberRole error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
   }
+
+  await pool.query('DELETE FROM group_members WHERE group_id = $1 AND user_id = $2', [req.idParam, req.user.user_id]);
+  return res.status(200).json({ message: 'Left group successfully' });
 };
 
-/**
- * DELETE /api/groups/:id/members/:userId
- * Remove a member from the group (Kick)
- */
+// GET /api/groups/:id/members   (admins first, then moderators, then members)
+export const listGroupMembers = async (req, res) => {
+  const denied = await accessError(req.idParam, req.user.user_id);
+  if (denied) {
+    return res.status(denied.status).json({ error: denied.error });
+  }
+
+  const { rows } = await pool.query(
+    `SELECT gm.group_id, gm.user_id, gm.role, gm.status, gm.joined_at,
+            u.username, up.full_name, up.avatar_url
+     FROM group_members gm
+     JOIN users u ON u.user_id = gm.user_id
+     LEFT JOIN user_profiles up ON up.user_id = gm.user_id
+     WHERE gm.group_id = $1
+     ORDER BY CASE gm.role WHEN 'admin' THEN 1 WHEN 'moderator' THEN 2 ELSE 3 END, gm.joined_at`,
+    [req.idParam]
+  );
+  return res.status(200).json({ members: rows });
+};
+
+// PATCH /api/groups/:id/members/:userId   Body: { role?, status? }
+// Admins and moderators can approve requests (status); only admins can change roles.
+export const updateMemberRole = async (req, res) => {
+  const { role, status } = req.body;
+  const me = await getMembership(req.idParam, req.user.user_id);
+  if (!canModerate(me)) {
+    return res.status(403).json({ error: 'Admin or Moderator privileges required' });
+  }
+  const target = await getMembership(req.idParam, req.otherId);
+  if (!target) {
+    return res.status(404).json({ error: 'Member record not found' });
+  }
+
+  if (role && role !== target.role) {
+    if (me.role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins can change member roles' });
+    }
+    if (target.role === 'admin' && (await isLastAdmin(req.idParam))) {
+      return res.status(400).json({ error: 'Cannot demote the last active admin of the group' });
+    }
+  }
+
+  const { rows } = await pool.query(
+    `UPDATE group_members
+     SET role = COALESCE($1, role), status = COALESCE($2, status)
+     WHERE group_id = $3 AND user_id = $4
+     RETURNING *`,
+    [role || null, status || null, req.idParam, req.otherId]
+  );
+  return res.status(200).json({ message: 'Member status updated successfully', member: rows[0] });
+};
+
+// DELETE /api/groups/:id/members/:userId
+// Admins and moderators can remove members; moderators cannot remove admins or moderators.
 export const removeMember = async (req, res) => {
-  const currentUserId = req.user.user_id;
-  const groupId = parseInt(req.params.id, 10);
-  const targetUserId = parseInt(req.params.userId, 10);
-
-  try {
-    const callerMembership = await getMembership(groupId, currentUserId);
-    if (!callerMembership || callerMembership.status !== 'active' || !['admin', 'moderator'].includes(callerMembership.role)) {
-      return res.status(403).json({ error: 'Admin or Moderator privileges required' });
-    }
-
-    const targetMembership = await getMembership(groupId, targetUserId);
-    if (!targetMembership) {
-      return res.status(404).json({ error: 'Member not found in group' });
-    }
-
-    // Moderators cannot kick admins or moderators
-    if (callerMembership.role === 'moderator' && ['admin', 'moderator'].includes(targetMembership.role)) {
-      return res.status(403).json({ error: 'Moderators cannot remove admins or other moderators' });
-    }
-
-    // Cannot remove last admin
-    if (targetMembership.role === 'admin') {
-      const adminCountRes = await pool.query(
-        `SELECT COUNT(*)::int AS count FROM group_members WHERE group_id = $1 AND role = 'admin' AND status = 'active'`,
-        [groupId]
-      );
-      if (adminCountRes.rows[0].count <= 1) {
-        return res.status(400).json({ error: 'Cannot remove the last active admin of the group' });
-      }
-    }
-
-    await pool.query(`DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`, [groupId, targetUserId]);
-    return res.status(200).json({ message: 'Member removed successfully' });
-  } catch (err) {
-    console.error('removeMember error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+  const me = await getMembership(req.idParam, req.user.user_id);
+  if (!canModerate(me)) {
+    return res.status(403).json({ error: 'Admin or Moderator privileges required' });
   }
+  const target = await getMembership(req.idParam, req.otherId);
+  if (!target) {
+    return res.status(404).json({ error: 'Member not found in group' });
+  }
+  if (me.role === 'moderator' && ['admin', 'moderator'].includes(target.role)) {
+    return res.status(403).json({ error: 'Moderators cannot remove admins or other moderators' });
+  }
+  if (target.role === 'admin' && (await isLastAdmin(req.idParam))) {
+    return res.status(400).json({ error: 'Cannot remove the last active admin of the group' });
+  }
+
+  await pool.query('DELETE FROM group_members WHERE group_id = $1 AND user_id = $2', [req.idParam, req.otherId]);
+  return res.status(200).json({ message: 'Member removed successfully' });
 };
 
-/**
- * GET /api/groups/:id/posts
- * Group feed
- */
+// ── Group feed ─────────────────────────────────────────────
+
+// GET /api/groups/:id/posts?limit=&offset=
 export const getGroupPosts = async (req, res) => {
-  const user_id = req.user.user_id;
-  const groupId = parseInt(req.params.id, 10);
-  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
-  const offset = parseInt(req.query.offset, 10) || 0;
-
-  try {
-    const groupRes = await pool.query(`SELECT visibility FROM groups WHERE group_id = $1`, [groupId]);
-    if (groupRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Group not found' });
-    }
-
-    const membership = await getMembership(groupId, user_id);
-    if (groupRes.rows[0].visibility === 'private' && (!membership || membership.status !== 'active')) {
-      return res.status(403).json({ error: 'Must be an active member to view posts in a private group' });
-    }
-
-    const result = await pool.query(
-      `SELECT p.post_id, p.author_id, p.group_id, u.username, prof.full_name, prof.avatar_url,
-              p.content, p.privacy_level, p.created_at, p.updated_at,
-              COUNT(DISTINCT pl.user_id)::int   AS like_count,
-              COUNT(DISTINCT c.comment_id)::int AS comment_count,
-              EXISTS (
-                SELECT 1 FROM post_likes my_l
-                WHERE my_l.post_id = p.post_id AND my_l.user_id = $1
-              ) AS has_liked,
-              EXISTS (
-                SELECT 1 FROM saved_posts my_s
-                WHERE my_s.post_id = p.post_id AND my_s.user_id = $1
-              ) AS has_saved
-       FROM posts p
-       JOIN users u ON u.user_id = p.author_id
-       LEFT JOIN user_profiles prof ON prof.user_id = p.author_id
-       LEFT JOIN post_likes pl ON pl.post_id = p.post_id
-       LEFT JOIN comments  c  ON c.post_id  = p.post_id
-       WHERE p.group_id = $2
-         AND p.deleted_at IS NULL
-       GROUP BY p.post_id, u.username, prof.full_name, prof.avatar_url
-       ORDER BY p.created_at DESC
-       LIMIT $3 OFFSET $4`,
-      [user_id, groupId, limit, offset]
-    );
-
-    // Fetch media attachments
-    const posts = result.rows;
-    if (posts.length > 0) {
-      const postIds = posts.map((p) => p.post_id);
-      const mediaRes = await pool.query(
-        `SELECT media_id, post_id, storage_bucket, storage_path, media_type, mime_type, file_size_bytes
-         FROM post_media
-         WHERE post_id = ANY($1::int[])`,
-        [postIds]
-      );
-      const mediaMap = {};
-      for (const m of mediaRes.rows) {
-        if (!mediaMap[m.post_id]) mediaMap[m.post_id] = [];
-        const publicUrl = `https://vsuqxguawnxtodcuajij.supabase.co/storage/v1/object/public/${m.storage_bucket}/${m.storage_path}`;
-        mediaMap[m.post_id].push({ ...m, url: publicUrl });
-      }
-      for (const p of posts) {
-        p.media = mediaMap[p.post_id] || [];
-      }
-    }
-
-    return res.status(200).json({ posts, limit, offset });
-  } catch (err) {
-    console.error('getGroupPosts error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+  const denied = await accessError(req.idParam, req.user.user_id);
+  if (denied) {
+    return res.status(denied.status).json({ error: denied.error });
   }
+
+  const paging = parsePaging(req.query, { defaultLimit: 20, maxLimit: 100 });
+  const posts = await findPosts('p.group_id = $2', [req.user.user_id, req.idParam], paging);
+  return res.status(200).json({ posts, ...paging });
 };
