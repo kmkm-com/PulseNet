@@ -11,7 +11,7 @@ The focus of the project is the relational database: 12 relations whose integrit
 | Name                  | Student ID    | Contributions                                                                                                                                     |
 | --------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Kshitij Mathur        | 2024A8PS0462H | **Backend & Auth:** Express server, routing, `pg` pool, JWT authentication, `/api/auth` and `/api/posts`, post publication with media (W3).        |
-| Fidel Saji            | 2024AAPS1158H | **Social Graph & Messaging:** Friend-request workflow (`friendships`), notification logic, direct-messaging endpoints, friend suggestions query.   |
+| Fidel Saji            | 2024A4PS1158H | **Social Graph & Messaging:** Friend-request workflow (`friendships`), notification logic, direct-messaging endpoints, friend suggestions query.   |
 | Ritika Mirium Thomas  | 2024A8PS0447H | **Engagement & Feed:** Likes, comments, bookmarks (`saved_posts`), feed page and feed UI components.                                              |
 | Yadavalli Sai Charan  | 2024A8PS0460H | **Communities:** Group creation, role-based access (`groups`, `group_members`), join flow, group feeds and group notifications (W4).               |
 | Shresth Prakash Singh | 2024A8PS0324H | **Database & Analytics:** Schema design, SQL scripts, triggers, views, indexes, seed data (500+ records) and query validation.                     |
