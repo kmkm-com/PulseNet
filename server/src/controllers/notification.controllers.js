@@ -1,11 +1,11 @@
 import pool from '../db/pool.js';
 import { parsePaging } from '../utils/params.js';
 
-// Notifications are created by database triggers (see db/schema.sql),
-// so this controller only reads, marks read, and deletes them.
+
+//this controller only reads, marks read, and deletes them notifs
 // :id is validated by router.param in notification.routes.js (req.idParam).
 
-// ── GET /api/notifications?unread=true&limit=&offset= ──────
+//GET /api/notifications?unread=true&limit=&offset= 
 // My notifications, newest first, with who did it and a post preview.
 export const listNotifications = async (req, res) => {
   const unreadOnly = req.query.unread === 'true';
@@ -30,7 +30,7 @@ export const listNotifications = async (req, res) => {
   return res.status(200).json({ notifications: result.rows, limit, offset });
 };
 
-// ── GET /api/notifications/unread-count ────────────────────
+//GET /api/notifications/unread-count
 export const getUnreadCount = async (req, res) => {
   const result = await pool.query(
     `SELECT COUNT(*)::int AS unread_count
@@ -41,7 +41,7 @@ export const getUnreadCount = async (req, res) => {
   return res.status(200).json(result.rows[0]);
 };
 
-// ── PATCH /api/notifications/read-all ──────────────────────
+//PATCH /api/notifications/read-all
 export const markAllRead = async (req, res) => {
   const result = await pool.query(
     `UPDATE notifications SET is_read = TRUE
@@ -51,7 +51,7 @@ export const markAllRead = async (req, res) => {
   return res.status(200).json({ marked_read: result.rowCount });
 };
 
-// ── PATCH /api/notifications/:id/read ──────────────────────
+//PATCH /api/notifications/:id/read
 export const markOneRead = async (req, res) => {
   const result = await pool.query(
     `UPDATE notifications SET is_read = TRUE
@@ -65,7 +65,7 @@ export const markOneRead = async (req, res) => {
   return res.status(200).json({ notification: result.rows[0] });
 };
 
-// ── DELETE /api/notifications/:id ──────────────────────────
+//DELETE /api/notifications/:id
 export const deleteNotification = async (req, res) => {
   const result = await pool.query(
     `DELETE FROM notifications

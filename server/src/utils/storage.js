@@ -8,6 +8,9 @@ export const supabase = (supabaseUrl && supabaseKey)
   ? createClient(supabaseUrl, supabaseKey)
   : null;
 
+// Public URL of a file in a public bucket (built locally, no network call)
+export const publicUrl = (bucket, path) => supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+
 /**
  * Upload buffer to Supabase Storage bucket
  */

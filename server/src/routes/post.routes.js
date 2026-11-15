@@ -17,6 +17,7 @@ import {
   uploadMedia,
 } from '../controllers/post.controllers.js';
 import auth from '../middleware/auth.js';
+import { idParam } from '../utils/params.js';
 
 const router = Router();
 const upload = multer({
@@ -26,6 +27,8 @@ const upload = multer({
 
 // All post routes require authentication
 router.use(auth);
+// Every :id must be a positive number; it is stored as req.idParam
+router.param('id', idParam('post'));
 
 // Feed & Posts
 router.post('/', createPost);

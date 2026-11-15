@@ -11,7 +11,7 @@ import { userIdParam } from '../utils/params.js';
 
 const router = Router();
 
-// All message routes require authentication
+//all message routes require auth
 router.use(auth);
 router.param('userId', userIdParam({ selfMessage: 'You cannot message yourself' }));
 

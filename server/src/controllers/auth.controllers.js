@@ -45,7 +45,7 @@ export const register = async(req,res) => {
 
         return res.status(500).json({error:'Internal server error during registration'});
     } finally{
-        client.release();// always return that runner to the pool
+        client.release();//returning that runner to the pool
     }
 };
 
@@ -72,7 +72,7 @@ export const login = async(req,res) => {
 
         const user = result.rows[0];
 
-        // Optional status check if column exists in the future
+        //Optional status check if column exists in the future
         if (user.account_status && user.account_status !== 'active') {
             return res.status(403).json({ error: 'account is not active' });
         }

@@ -16,14 +16,13 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 
-// All user routes require authentication
+
 router.use(auth);
 
-// Profile editing and avatar upload for current user
+// profile editing and avatar uploads 
 router.patch('/me', updateProfile);
 router.post('/me/avatar', upload.single('avatar'), uploadAvatar);
 
-// Search users
 router.get('/', searchUsers);
 
 // Individual profile operations
