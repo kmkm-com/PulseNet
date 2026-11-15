@@ -45,7 +45,7 @@ export default function Register() {
               className="field__input"
               autoComplete="name"
               required
-              placeholder="e.g. Alice Sharma"
+              placeholder="e.g. Test User"
               value={fields.full_name}
               onChange={update('full_name')}
             />
@@ -60,7 +60,7 @@ export default function Register() {
               maxLength={50}
               pattern="[A-Za-z0-9_.]+"
               title="Letters, numbers, dots and underscores"
-              placeholder="e.g. alicesharma"
+              placeholder="e.g. testuser"
               value={fields.username}
               onChange={update('username')}
             />
@@ -72,7 +72,7 @@ export default function Register() {
               className="field__input"
               autoComplete="email"
               required
-              placeholder="e.g. alice@example.com"
+              placeholder="e.g. testuser@example.com"
               value={fields.email}
               onChange={update('email')}
             />

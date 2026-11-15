@@ -2,7 +2,9 @@
 node_modules/
 
 # Environment variables – NEVER commit this!
-.env
+.env*
+!.env.example
+!.env.test.example
 
 # Build output
 dist/
@@ -19,6 +21,12 @@ Thumbs.db
 # IDE / editor folders
 .vscode/
 .idea/
+
+# Backups & dumps
+backup/
+*.dump
+*.backup
+*.sql.gz
 
 # Agent guide (local pair programming only)
 AGENTS.md

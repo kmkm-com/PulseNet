@@ -8,6 +8,11 @@ import { timeAgo } from '../lib/time.js';
 
 const PRIVACY_LABEL = { public: 'Public', friends_only: 'Friends', private: 'Only you' };
 
+function formatPostContent(text) {
+  if (!text) return '';
+  return text.replace(/\s*\[(Pulse|Dispatch)\s*#\d+\]/gi, '').trim();
+}
+
 function PostMediaItem({ media }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -59,7 +64,7 @@ export default function PostCard({ post, currentUser, onDeletePost, onUpdatePost
 
   // Post edit state
   const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(post.content || '');
+  const [editContent, setEditContent] = useState(formatPostContent(post.content) || '');
   const [editPrivacy, setEditPrivacy] = useState(post.privacy_level || 'public');
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -253,7 +258,7 @@ export default function PostCard({ post, currentUser, onDeletePost, onUpdatePost
             </div>
           </form>
         ) : (
-          post.content && <p className="post__content">{post.content}</p>
+          post.content && <p className="post__content">{formatPostContent(post.content)}</p>
         )}
 
         {/* Media Attachments Grid */}

@@ -1,6 +1,6 @@
 -- =============================================================
 -- PulseNet Seed Data
--- DBMS Course Project | PERN Stack
+-- DBMS Course Project | PERN / Supabase PostgreSQL Stack
 -- =============================================================
 -- Run AFTER schema.sql:
 --   psql -U <user> -d pulsenet_db -f seed.sql
@@ -9,8 +9,8 @@
 --       for all test accounts.
 -- =============================================================
 
--- Drop any existing test data and reset serial identity counters
-TRUNCATE TABLE 
+-- Drop existing test data and reset serial identity counters
+TRUNCATE TABLE
     direct_messages,
     notifications,
     group_members,
@@ -28,27 +28,27 @@ RESTART IDENTITY CASCADE;
 -- -----------------------------------------------------------
 -- 1. USERS  (bcrypt hash of "password123", cost=10)
 -- -----------------------------------------------------------
-INSERT INTO users (username, email, password_hash) VALUES
-    ('alice',   'alice@example.com',   '$2b$10$Jo6wbIdEYSOK2uwoFTfiDOVI2h3UBwsPGu2uRd8pVxBmnDXOYP9TS'),
-    ('bob',     'bob@example.com',     '$2b$10$Jo6wbIdEYSOK2uwoFTfiDOVI2h3UBwsPGu2uRd8pVxBmnDXOYP9TS'),
-    ('charlie', 'charlie@example.com', '$2b$10$Jo6wbIdEYSOK2uwoFTfiDOVI2h3UBwsPGu2uRd8pVxBmnDXOYP9TS'),
-    ('diana',   'diana@example.com',   '$2b$10$Jo6wbIdEYSOK2uwoFTfiDOVI2h3UBwsPGu2uRd8pVxBmnDXOYP9TS'),
-    ('evan',    'evan@example.com',    '$2b$10$Jo6wbIdEYSOK2uwoFTfiDOVI2h3UBwsPGu2uRd8pVxBmnDXOYP9TS');
+INSERT INTO users (username, email, password_hash, account_status) VALUES
+    ('testuser', 'testuser@example.com', '$2b$10$Jo6wbIdEYSOK2uwoFTfiDOVI2h3UBwsPGu2uRd8pVxBmnDXOYP9TS', 'active'),
+    ('bob',     'bob@example.com',     '$2b$10$Jo6wbIdEYSOK2uwoFTfiDOVI2h3UBwsPGu2uRd8pVxBmnDXOYP9TS', 'active'),
+    ('charlie', 'charlie@example.com', '$2b$10$Jo6wbIdEYSOK2uwoFTfiDOVI2h3UBwsPGu2uRd8pVxBmnDXOYP9TS', 'active'),
+    ('diana',   'diana@example.com',   '$2b$10$Jo6wbIdEYSOK2uwoFTfiDOVI2h3UBwsPGu2uRd8pVxBmnDXOYP9TS', 'active'),
+    ('evan',    'evan@example.com',    '$2b$10$Jo6wbIdEYSOK2uwoFTfiDOVI2h3UBwsPGu2uRd8pVxBmnDXOYP9TS', 'active');
 
 -- -----------------------------------------------------------
 -- 2. USER_PROFILES
 -- -----------------------------------------------------------
-INSERT INTO user_profiles (user_id, full_name, bio, location, avatar_url) VALUES
-    (1, 'Alice Sharma',   'Computer Science student. Coffee enthusiast ☕',       'Delhi, India',   'https://i.pravatar.cc/150?img=1'),
-    (2, 'Bob Mehta',      'Building cool things one commit at a time 🚀',          'Mumbai, India',  'https://i.pravatar.cc/150?img=2'),
-    (3, 'Charlie Verma',  'DBMS nerd | Love SQL and distributed systems 🗄️',     'Bangalore, India','https://i.pravatar.cc/150?img=3'),
-    (4, 'Diana Kapoor',   'UI/UX designer & React developer 🎨',                  'Pune, India',    'https://i.pravatar.cc/150?img=4'),
-    (5, 'Evan Nair',      'Fullstack dev | Open source contributor 🌐',            'Chennai, India', 'https://i.pravatar.cc/150?img=5');
+INSERT INTO user_profiles (user_id, full_name, bio, location, website_url, avatar_url) VALUES
+    (1, 'Test User',   'Computer Science student & DBMS researcher 🚀', 'Hyderabad, India', 'https://github.com/testuser', 'https://i.pravatar.cc/150?img=1'),
+    (2, 'Bob Mehta',      'Building cool things one commit at a time 🚀',        'Mumbai, India',    'https://github.com/bob',     'https://i.pravatar.cc/150?img=2'),
+    (3, 'Charlie Verma',  'DBMS nerd | Love SQL and distributed systems 🗄️',   'Bangalore, India', 'https://github.com/charlie', 'https://i.pravatar.cc/150?img=3'),
+    (4, 'Diana Kapoor',   'UI/UX designer & React developer 🎨',                'Pune, India',      'https://github.com/diana',   'https://i.pravatar.cc/150?img=4'),
+    (5, 'Evan Nair',      'Fullstack dev | Open source contributor 🌐',          'Chennai, India',   'https://github.com/evan',    'https://i.pravatar.cc/150?img=5');
 
 -- -----------------------------------------------------------
 -- 3. FRIENDSHIPS
+--    responded_at must be set for accepted/declined rows and NULL for pending
 -- -----------------------------------------------------------
--- responded_at must be set for accepted/declined rows and NULL for pending
 INSERT INTO friendships (requester_id, addressee_id, status, responded_at) VALUES
     (1, 2, 'accepted', NOW()),   -- Alice & Bob are friends
     (1, 3, 'accepted', NOW()),   -- Alice & Charlie are friends
@@ -57,46 +57,70 @@ INSERT INTO friendships (requester_id, addressee_id, status, responded_at) VALUE
     (3, 5, 'declined', NOW());   -- Charlie's request to Evan was declined
 
 -- -----------------------------------------------------------
--- 4. POSTS
+-- 4. GROUPS
 -- -----------------------------------------------------------
-INSERT INTO posts (author_id, content, privacy_level) VALUES
-    (1, 'Just finished my DBMS project! Feeling proud 🎉 #PulseNet #DBMS',                    'public'),
-    (2, 'PostgreSQL is amazing once you understand JOINs. Trust the process 💪',                'public'),
-    (3, 'Reading about normalisation forms today. 1NF → 2NF → 3NF → BCNF 📚',                 'public'),
-    (4, 'Designed the new UI for our college project. React + Vite is so fast! ⚡',            'friends_only'),
-    (5, 'Open source contribution of the day: fixed a bug in a popular npm package 🐛✅',     'public'),
-    (1, 'Late night coding session with coffee. The best kind of session ☕💻',                 'friends_only');
+INSERT INTO groups (name, description, creator_id, visibility) VALUES
+    ('DBMS Study Group', 'A group for students studying Database Management Systems.', 3, 'public'),
+    ('React Devs',       'Frontend developers who love React and modern JS tooling.', 4, 'public'),
+    ('Open Source Club', 'We contribute to open source projects every week!',         5, 'public');
 
 -- -----------------------------------------------------------
--- 5. POST_MEDIA
+-- 5. GROUP_MEMBERS
+--    Trigger trg_groups_creator_admin automatically adds creator as admin.
+--    ON CONFLICT handles creator re-specification gracefully.
+-- -----------------------------------------------------------
+INSERT INTO group_members (group_id, user_id, role, status) VALUES
+    (1, 3, 'admin',  'active'),
+    (1, 1, 'member', 'active'),
+    (1, 2, 'member', 'active'),
+    (2, 4, 'admin',  'active'),
+    (2, 1, 'member', 'active'),
+    (3, 5, 'admin',  'active'),
+    (3, 2, 'member', 'active')
+ON CONFLICT (group_id, user_id)
+DO UPDATE SET role = EXCLUDED.role, status = EXCLUDED.status;
+
+-- -----------------------------------------------------------
+-- 6. POSTS
+-- -----------------------------------------------------------
+INSERT INTO posts (author_id, group_id, content, privacy_level) VALUES
+    (1, NULL, 'Just finished my DBMS project! Feeling proud 🎉 #PulseNet #DBMS',                  'public'),
+    (2, NULL, 'PostgreSQL is amazing once you understand JOINs. Trust the process 💪',              'public'),
+    (3, 1,    'Reading about normalisation forms today. 1NF → 2NF → 3NF → BCNF 📚',               'public'),
+    (4, 2,    'Designed the new UI for our college project. React + Vite is so fast! ⚡',          'friends_only'),
+    (5, 3,    'Open source contribution of the day: fixed a bug in a popular npm package 🐛✅',   'public'),
+    (1, NULL, 'Late night coding session with coffee. The best kind of session ☕💻',               'friends_only');
+
+-- -----------------------------------------------------------
+-- 7. POST_MEDIA
 -- -----------------------------------------------------------
 INSERT INTO post_media (post_id, storage_bucket, storage_path, media_type, mime_type, file_size_bytes) VALUES
-    (1, 'post-media', 'posts/1/celebration.jpg',       'image', 'image/jpeg', 2458120),
-    (4, 'post-media', 'posts/4/react_ui_preview.png',   'image', 'image/png',  1184920),
-    (5, 'post-media', 'posts/5/demo_screencast.mp4',    'video', 'video/mp4',  15482390);
+    (1, 'post-media', 'posts/1/celebration.jpg',     'image', 'image/jpeg', 2458120),
+    (4, 'post-media', 'posts/4/react_ui_preview.png', 'image', 'image/png',  1184920),
+    (5, 'post-media', 'posts/5/demo_screencast.mp4',  'video', 'video/mp4',  15482390);
 
 -- -----------------------------------------------------------
--- 6. POST_LIKES
+-- 8. POST_LIKES
 -- -----------------------------------------------------------
 INSERT INTO post_likes (user_id, post_id) VALUES
-    (2, 1),   -- Bob liked Alice's post
-    (3, 1),   -- Charlie liked Alice's post
-    (1, 2),   -- Alice liked Bob's post
-    (4, 3),   -- Diana liked Charlie's post
-    (5, 2),   -- Evan liked Bob's post
-    (1, 5);   -- Alice liked Evan's post
+    (2, 1),
+    (3, 1),
+    (1, 2),
+    (4, 3),
+    (5, 2),
+    (1, 5);
 
 -- -----------------------------------------------------------
--- 7. SAVED_POSTS
+-- 9. SAVED_POSTS
 -- -----------------------------------------------------------
 INSERT INTO saved_posts (user_id, post_id) VALUES
-    (1, 3),   -- Alice saved Charlie's normalisation post
-    (2, 1),   -- Bob saved Alice's project announcement
-    (3, 2),   -- Charlie saved Bob's SQL JOINs post
-    (4, 5);   -- Diana saved Evan's open source post
+    (1, 3),
+    (2, 1),
+    (3, 2),
+    (4, 5);
 
 -- -----------------------------------------------------------
--- 8. COMMENTS
+-- 10. COMMENTS
 -- -----------------------------------------------------------
 INSERT INTO comments (post_id, author_id, content) VALUES
     (1, 2, 'Congrats Alice! Our project is looking great 🔥'),
@@ -106,32 +130,10 @@ INSERT INTO comments (post_id, author_id, content) VALUES
     (5, 4, 'That''s awesome Evan! Which package was it?');
 
 -- -----------------------------------------------------------
--- 9. GROUPS
--- -----------------------------------------------------------
-INSERT INTO groups (name, description, creator_id) VALUES
-    ('DBMS Study Group',  'A group for students studying Database Management Systems.', 3),
-    ('React Devs',        'Frontend developers who love React and modern JS tooling.',  4),
-    ('Open Source Club',  'We contribute to open source projects every week!',          5);
-
--- -----------------------------------------------------------
--- 10. GROUP_MEMBERS
--- -----------------------------------------------------------
-INSERT INTO group_members (group_id, user_id, role) VALUES
-    (1, 3, 'admin'),    -- Charlie created group 1
-    (1, 1, 'member'),   -- Alice joined DBMS group
-    (1, 2, 'member'),   -- Bob joined DBMS group
-    (2, 4, 'admin'),    -- Diana created group 2
-    (2, 1, 'member'),   -- Alice in React Devs
-    (3, 5, 'admin'),    -- Evan created group 3
-    (3, 2, 'member');   -- Bob in Open Source Club
-
--- -----------------------------------------------------------
 -- 11. NOTIFICATIONS
+--    Generated automatically by triggers on friendships, post_likes,
+--    comments, and direct messages.
 -- -----------------------------------------------------------
--- Not inserted by hand: the triggers in schema.sql already created
--- notifications for the pending friend request, likes and comments above
--- (and for the unread direct messages inserted below).
--- Mark the like notifications as read so the data has a read/unread mix.
 UPDATE notifications SET is_read = TRUE WHERE notification_type = 'post_like';
 
 -- -----------------------------------------------------------

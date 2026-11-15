@@ -1,38 +1,72 @@
 /**
- * Deterministic Seeder for PulseNet on Supabase
- * Generates ~1,800 records across all 12 core relations while obeying all database constraints
+ * PulseNet Deterministic Synthetic Demonstration Seeder
+ * Generates 1,500+ records across all 12 core relations adhering to all constraints.
+ *
+ * Can be run via:
+ *   npm run db:seed:demo
+ * Or imported as:
+ *   import { runSeeder } from './seed-demo.js';
  */
-import { createClient } from '@supabase/supabase-js';
+import { fileURLToPath } from 'url';
+import pool from '../src/db/pool.js';
+import '../src/config/env.js';
+import { validateSafeTestTarget } from '../src/db/safety.js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vsuqxguawnxtodcuajij.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_ID83pmexw6HHj-AVEgk0nw_glhLQjq9';
-
-// Fixed bcrypt hash for 'password123'
+// Fixed bcrypt hash for test password 'password123' (cost=10)
 const DEMO_PASSWORD_HASH = '$2b$10$Jo6wbIdEYSOK2uwoFTfiDOVI2h3UBwsPGu2uRd8pVxBmnDXOYP9TS';
 
-const FIRST_NAMES = ['Aarav', 'Aditi', 'Alok', 'Ananya', 'Aryan', 'Bhavna', 'Chetan', 'Dev', 'Diya', 'Gaurav', 'Ishaan', 'Kavya', 'Manish', 'Neha', 'Pooja', 'Rahul', 'Rhea', 'Rohan', 'Sneha', 'Tanvi', 'Varun', 'Vikram', 'Yash', 'Zoya', 'Aditya', 'Harsh', 'Meera', 'Kiran', 'Naveen', 'Priya', 'Rajesh', 'Sanya', 'Siddharth', 'Simran', 'Tanya', 'Akash', 'Deepak', 'Geeta', 'Kunal', 'Maya', 'Nitin', 'Payal', 'Sachin', 'Shreya', 'Tarun', 'Anjali', 'Karthik', 'Preeti', 'Sameer', 'Swati', 'Amit', 'Divya', 'Mohit', 'Nandini', 'Pranav'];
-const LAST_NAMES = ['Sharma', 'Verma', 'Patel', 'Reddy', 'Mehta', 'Nair', 'Kapoor', 'Rao', 'Iyer', 'Gupta', 'Singh', 'Deshmukh', 'Bhat', 'Joshi', 'Chopra', 'Malhotra', 'Bose', 'Chatterjee', 'Pandey', 'Saxena'];
-const CITIES = ['Hyderabad, India', 'Bengaluru, India', 'Mumbai, India', 'Delhi, India', 'Pune, India', 'Chennai, India', 'Kolkata, India', 'Ahmedabad, India'];
+const FIRST_NAMES = [
+  'Aarav', 'Aditi', 'Alok', 'Ananya', 'Aryan', 'Bhavna', 'Chetan', 'Dev', 'Diya', 'Gaurav',
+  'Ishaan', 'Kavya', 'Manish', 'Neha', 'Pooja', 'Rahul', 'Rhea', 'Rohan', 'Sneha', 'Tanvi',
+  'Varun', 'Vikram', 'Yash', 'Zoya', 'Aditya', 'Harsh', 'Meera', 'Kiran', 'Naveen', 'Priya',
+  'Rajesh', 'Sanya', 'Siddharth', 'Simran', 'Tanya', 'Akash', 'Deepak', 'Geeta', 'Kunal', 'Maya',
+  'Nitin', 'Payal', 'Sachin', 'Shreya', 'Tarun', 'Anjali', 'Karthik', 'Preeti', 'Sameer', 'Swati',
+  'Amit', 'Divya', 'Mohit', 'Nandini', 'Pranav'
+];
+
+const LAST_NAMES = [
+  'Sharma', 'Verma', 'Patel', 'Reddy', 'Mehta', 'Nair', 'Kapoor', 'Rao', 'Iyer', 'Gupta',
+  'Singh', 'Deshmukh', 'Bhat', 'Joshi', 'Chopra', 'Malhotra', 'Bose', 'Chatterjee', 'Pandey', 'Saxena'
+];
+
+const CITIES = [
+  'Hyderabad, India', 'Bengaluru, India', 'Mumbai, India', 'Delhi, India',
+  'Pune, India', 'Chennai, India', 'Kolkata, India', 'Ahmedabad, India'
+];
+
 const TOPICS = [
-  'Exploring PostgreSQL 17 query plans and vacuum strategies today! 🚀 #DBMS',
+  'Exploring PostgreSQL 17 query plans and B-Tree indexing strategies today! 🚀 #DBMS',
   'Just configured Supabase Row Level Security. Rock solid data protection! 🛡️',
   'Working on responsive UI layouts with React and Vite. Smooth 60fps! ⚡',
   'Database normalisation: Boyce-Codd Normal Form is truly satisfying once it clicks. 📚',
   'Late night coding with hot filter coffee ☕ What are you building this weekend?',
   'Indexes are game changers for million-row queries. B-Trees for the win! 🌲',
   'Completed our database system lab demo! Feeling accomplished 🎉',
-  'Does anyone prefer CTEs over nested subqueries for readability? Let’s discuss!',
+  'Does anyone prefer CTEs over nested subqueries for readability? Let us discuss!',
   'Contributing open-source PRs to our favourite developer libraries today 🌐',
   'Designing database schemas with deferred constraints and trigger audits. Clean architecture!'
 ];
 
-export async function runSeeder(pool) {
-  console.log('--- Starting PulseNet Synthetic Data Seeding ---');
+export async function runSeeder(dbPool) {
+  // Safety check: only permitted on explicitly approved local disposable databases
+  const target = validateSafeTestTarget({ operation: 'Demo Seeder' });
+  console.log(`[Demo Seeder] Target confirmed safe: host='${target.host}', database='${target.database}'`);
 
-  // 1. Ensure 5 original users + 55 synthetic users = 60 users
-  console.log('1. Inserting Users & Profiles...');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to seed in production environment.');
+  }
+
+  console.log('--- Starting PulseNet Synthetic Data Seeding ---');
+  const summary = {};
+
+  const client = await dbPool.connect();
+  try {
+    await client.query('BEGIN');
+
+  // 1. Users & User Profiles (60 users)
+  console.log('1. Seeding Users & Profiles...');
   const users = [
-    { username: 'alice', email: 'alice@example.com', name: 'Alice Sharma', bio: 'Computer Science student. Coffee enthusiast ☕', location: 'Delhi, India' },
+    { username: 'testuser', email: 'testuser@example.com', name: 'Test User', bio: 'Computer Science student & DBMS researcher 🚀', location: 'Hyderabad, India' },
     { username: 'bob', email: 'bob@example.com', name: 'Bob Mehta', bio: 'Building cool things one commit at a time 🚀', location: 'Mumbai, India' },
     { username: 'charlie', email: 'charlie@example.com', name: 'Charlie Verma', bio: 'DBMS nerd | Love SQL and distributed systems 🗄️', location: 'Bangalore, India' },
     { username: 'diana', email: 'diana@example.com', name: 'Diana Kapoor', bio: 'UI/UX designer & React developer 🎨', location: 'Pune, India' },
@@ -46,14 +80,14 @@ export async function runSeeder(pool) {
       username: `${fn.toLowerCase()}${i}`,
       email: `${fn.toLowerCase()}${i}@pulsenet.dev`,
       name: `${fn} ${ln}`,
-      bio: `Software explorer and DBMS enthusiast #${i}`,
+      bio: `Software explorer and DBMS scholar #${i}`,
       location: CITIES[(i - 6) % CITIES.length],
     });
   }
 
   const userIds = [];
   for (const u of users) {
-    const res = await pool.query(
+    const res = await client.query(
       `INSERT INTO users (username, email, password_hash, account_status)
        VALUES ($1, $2, $3, 'active')
        ON CONFLICT (LOWER(username)) DO UPDATE SET email = EXCLUDED.email
@@ -63,20 +97,22 @@ export async function runSeeder(pool) {
     const uid = res.rows[0].user_id;
     userIds.push(uid);
 
-    await pool.query(
-      `INSERT INTO user_profiles (user_id, full_name, bio, location, avatar_url)
-       VALUES ($1, $2, $3, $4, $5)
+    await client.query(
+      `INSERT INTO user_profiles (user_id, full_name, bio, location, avatar_url, website_url)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (user_id) DO UPDATE SET
          full_name = EXCLUDED.full_name,
          bio = EXCLUDED.bio,
          location = EXCLUDED.location`,
-      [uid, u.name, u.bio, u.location, `https://i.pravatar.cc/150?u=${u.username}`]
+      [uid, u.name, u.bio, u.location, `https://i.pravatar.cc/150?u=${u.username}`, `https://github.com/${u.username}`]
     );
   }
+  summary.users = userIds.length;
+  summary.user_profiles = userIds.length;
   console.log(`✓ Inserted/verified ${userIds.length} users and user profiles.`);
 
   // 2. Friendships (~180 pairs)
-  console.log('2. Inserting Friendships...');
+  console.log('2. Seeding Friendships...');
   let friendshipCount = 0;
   for (let i = 0; i < userIds.length; i++) {
     for (let j = 1; j <= 6; j++) {
@@ -89,7 +125,7 @@ export async function runSeeder(pool) {
       const respondedAt = status === 'pending' ? null : new Date();
 
       try {
-        await pool.query(
+        await client.query(
           `INSERT INTO friendships (requester_id, addressee_id, status, created_at, responded_at)
            VALUES ($1, $2, $3, NOW() - INTERVAL '${(i + j)} hours', $4)
            ON CONFLICT DO NOTHING`,
@@ -101,10 +137,11 @@ export async function runSeeder(pool) {
       }
     }
   }
-  console.log(`✓ Friendships generated: ${friendshipCount}`);
+  summary.friendships = friendshipCount;
+  console.log(`✓ Friendships processed: ${friendshipCount}`);
 
   // 3. Groups (15 groups)
-  console.log('3. Inserting Groups...');
+  console.log('3. Seeding Groups & Circles...');
   const groupNames = [
     ['DBMS Study Group', 'Database systems, normalisation, indexing and SQL optimization', 'public'],
     ['React & Vite Developers', 'Frontend web tooling, React 18, and modern CSS', 'public'],
@@ -127,7 +164,7 @@ export async function runSeeder(pool) {
   for (let i = 0; i < groupNames.length; i++) {
     const [name, desc, vis] = groupNames[i];
     const creator = userIds[i % userIds.length];
-    const gRes = await pool.query(
+    const gRes = await client.query(
       `INSERT INTO groups (name, description, creator_id, visibility)
        VALUES ($1, $2, $3, $4)
        RETURNING group_id`,
@@ -135,19 +172,19 @@ export async function runSeeder(pool) {
     );
     groupIds.push(gRes.rows[0].group_id);
   }
-  console.log(`✓ Inserted ${groupIds.length} groups with automatic creator admin trigger.`);
+  summary.groups = groupIds.length;
+  console.log(`✓ Inserted ${groupIds.length} groups.`);
 
   // 4. Group Members (~150 memberships)
-  console.log('4. Inserting Group Members...');
+  console.log('4. Seeding Group Memberships...');
   let memberCount = 0;
   for (let gi = 0; gi < groupIds.length; gi++) {
     const gid = groupIds[gi];
-    // Add 8-12 members per group
     for (let u = 0; u < 10; u++) {
       const uid = userIds[(gi * 3 + u) % userIds.length];
       const role = u === 1 ? 'moderator' : 'member';
       try {
-        await pool.query(
+        await client.query(
           `INSERT INTO group_members (group_id, user_id, role, status)
            VALUES ($1, $2, $3, 'active')
            ON CONFLICT (group_id, user_id) DO NOTHING`,
@@ -157,19 +194,20 @@ export async function runSeeder(pool) {
       } catch (e) {}
     }
   }
-  console.log(`✓ Group members populated: ${memberCount}`);
+  summary.group_members = memberCount;
+  console.log(`✓ Group members added: ${memberCount}`);
 
-  // 5. Posts (~200 posts)
-  console.log('5. Inserting Posts...');
+  // 5. Posts (~200 dispatches)
+  console.log('5. Seeding Posts & Dispatches...');
   const postIds = [];
   for (let i = 0; i < 200; i++) {
     const authorId = userIds[i % userIds.length];
     const isGroupPost = i % 4 === 0;
     const gid = isGroupPost ? groupIds[i % groupIds.length] : null;
     const privacy = isGroupPost ? 'public' : (i % 3 === 0 ? 'friends_only' : 'public');
-    const text = `${TOPICS[i % TOPICS.length]} [Pulse #${i + 1}]`;
+    const text = TOPICS[i % TOPICS.length];
 
-    const res = await pool.query(
+    const res = await client.query(
       `INSERT INTO posts (author_id, group_id, content, privacy_level, created_at)
        VALUES ($1, $2, $3, $4, NOW() - INTERVAL '${i * 30} minutes')
        RETURNING post_id`,
@@ -177,13 +215,14 @@ export async function runSeeder(pool) {
     );
     postIds.push(res.rows[0].post_id);
   }
+  summary.posts = postIds.length;
   console.log(`✓ Inserted ${postIds.length} posts.`);
 
-  // 6. Post Media (~60 media items)
-  console.log('6. Inserting Post Media...');
+  // 6. Post Media (~60 media records)
+  console.log('6. Seeding Post Media Attachments...');
   let mediaCount = 0;
   for (let i = 0; i < 60; i++) {
-    const pid = postIds[i * 3]; // attach to every 3rd post
+    const pid = postIds[i * 3];
     const isVideo = i % 8 === 0;
     const path = isVideo ? `sample_assets/video_${i}.mp4` : `sample_assets/image_${i}.jpg`;
     const mime = isVideo ? 'video/mp4' : 'image/jpeg';
@@ -191,7 +230,7 @@ export async function runSeeder(pool) {
     const size = isVideo ? 12450000 + i * 1000 : 850000 + i * 500;
 
     try {
-      await pool.query(
+      await client.query(
         `INSERT INTO post_media (post_id, storage_bucket, storage_path, media_type, mime_type, file_size_bytes)
          VALUES ($1, 'post-media', $2, $3, $4, $5)
          ON CONFLICT (storage_bucket, storage_path) DO NOTHING`,
@@ -200,19 +239,19 @@ export async function runSeeder(pool) {
       mediaCount++;
     } catch (e) {}
   }
-  console.log(`✓ Inserted ${mediaCount} post media attachments.`);
+  summary.post_media = mediaCount;
+  console.log(`✓ Inserted ${mediaCount} media attachments.`);
 
   // 7. Post Likes (~400 likes)
-  console.log('7. Inserting Post Likes...');
+  console.log('7. Seeding Post Likes...');
   let likesCount = 0;
   for (let i = 0; i < postIds.length; i++) {
     const pid = postIds[i];
-    // Each post liked by 2-4 users
     const numLikes = (i % 4) + 1;
     for (let k = 0; k < numLikes; k++) {
       const uid = userIds[(i + k * 5) % userIds.length];
       try {
-        await pool.query(
+        await client.query(
           `INSERT INTO post_likes (user_id, post_id, created_at)
            VALUES ($1, $2, NOW() - INTERVAL '${(i + k)} minutes')
            ON CONFLICT DO NOTHING`,
@@ -222,16 +261,17 @@ export async function runSeeder(pool) {
       } catch (e) {}
     }
   }
-  console.log(`✓ Inserted post likes: ${likesCount}`);
+  summary.post_likes = likesCount;
+  console.log(`✓ Inserted ${likesCount} post likes.`);
 
   // 8. Saved Posts (~200 bookmarks)
-  console.log('8. Inserting Saved Posts...');
+  console.log('8. Seeding Bookmarked Posts...');
   let savedCount = 0;
   for (let i = 0; i < 200; i++) {
     const uid = userIds[i % userIds.length];
     const pid = postIds[(i * 2 + 1) % postIds.length];
     try {
-      await pool.query(
+      await client.query(
         `INSERT INTO saved_posts (user_id, post_id, saved_at)
          VALUES ($1, $2, NOW() - INTERVAL '${i * 15} minutes')
          ON CONFLICT DO NOTHING`,
@@ -240,11 +280,12 @@ export async function runSeeder(pool) {
       savedCount++;
     } catch (e) {}
   }
-  console.log(`✓ Inserted saved posts: ${savedCount}`);
+  summary.saved_posts = savedCount;
+  console.log(`✓ Inserted ${savedCount} saved posts.`);
 
   // 9. Comments (~400 comments)
-  console.log('9. Inserting Comments...');
-  const comments = [
+  console.log('9. Seeding Discussion Comments...');
+  const sampleComments = [
     'Great point! Totally agree with this approach.',
     'Could you share more details or a code snippet?',
     'This was super helpful for our DBMS presentation.',
@@ -258,18 +299,19 @@ export async function runSeeder(pool) {
   for (let i = 0; i < 400; i++) {
     const pid = postIds[i % postIds.length];
     const authorId = userIds[(i * 3 + 2) % userIds.length];
-    const text = comments[i % comments.length];
-    await pool.query(
+    const text = sampleComments[i % sampleComments.length];
+    await client.query(
       `INSERT INTO comments (post_id, author_id, content, created_at)
        VALUES ($1, $2, $3, NOW() - INTERVAL '${i * 10} minutes')`,
       [pid, authorId, text]
     );
     commentTotal++;
   }
+  summary.comments = commentTotal;
   console.log(`✓ Inserted ${commentTotal} comments.`);
 
-  // 10. Direct Messages (~250 messages between friends)
-  console.log('10. Inserting Direct Messages...');
+  // 10. Direct Messages (~250 messages)
+  console.log('10. Seeding Direct Messages...');
   const dmMessages = [
     'Hey, are you free to discuss the database normalisation schema?',
     'Yes, I just reviewed the tables and constraints. Looking very clean!',
@@ -288,14 +330,42 @@ export async function runSeeder(pool) {
     const isRead = i % 3 !== 0;
     const readAt = isRead ? new Date() : null;
 
-    await pool.query(
+    await client.query(
       `INSERT INTO direct_messages (sender_id, recipient_id, content, sent_at, read_at)
        VALUES ($1, $2, $3, NOW() - INTERVAL '${(300 - i) * 5} minutes', $4)`,
       [sender, recipient, text, readAt]
     );
     dmCount++;
   }
+  summary.direct_messages = dmCount;
   console.log(`✓ Inserted ${dmCount} direct messages.`);
 
-  console.log('\n--- Seeding Completed Successfully! ---');
+  await client.query('COMMIT');
+  console.log('\n=========================================');
+  console.log('🎉 SEEDING COMPLETED SUCCESSFULLY!');
+  console.log('=========================================');
+  return summary;
+} catch (err) {
+  await client.query('ROLLBACK');
+  console.error('Seeding aborted and rolled back due to error:', err);
+  throw err;
+} finally {
+  client.release();
+}
+}
+
+import path from 'path';
+
+// Auto-run if executed directly via node or npm script
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+if (isMain) {
+  runSeeder(pool)
+    .then((summary) => {
+      console.log('Record Insertion Summary:', summary);
+      return pool.end();
+    })
+    .catch((err) => {
+      console.error('Seeding failed with error:', err);
+      process.exit(1);
+    });
 }

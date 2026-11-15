@@ -1,8 +1,11 @@
 import app from './src/app.js';
 import pool from './src/db/pool.js';
+import { validateSafeTestTarget } from './src/db/safety.js';
 
 async function runTests() {
   console.log('--- Starting Post Engagement API Integration Test ---');
+  const target = validateSafeTestTarget({ operation: 'Post Engagement Test' });
+  console.log(`[Test Runner] Target confirmed safe: host='${target.host}', database='${target.database}'`);
   const server = app.listen(0);
   const port = server.address().port;
   const baseUrl = `http://localhost:${port}/api`;

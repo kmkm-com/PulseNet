@@ -47,7 +47,7 @@ export default function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="alice@example.com"
+              placeholder="testuser@example.com"
             />
           </div>
           <div className="field">
@@ -73,7 +73,7 @@ export default function Login() {
         </p>
         <div className="auth__demo-box">
           <span className="auth__demo-label">Demo Credentials:</span>
-          <code>alice@example.com</code> / <code>password123</code>
+          <code>testuser@example.com</code> / <code>password123</code>
         </div>
       </div>
     </div>
