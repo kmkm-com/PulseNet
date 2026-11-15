@@ -9,7 +9,11 @@ export const supabase = (supabaseUrl && supabaseKey)
   : null;
 
 // Public URL of a file in a public bucket (built locally, no network call)
-export const publicUrl = (bucket, path) => supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+// Falls back to a placeholder path when Supabase is not configured (local/dev mode)
+export const publicUrl = (bucket, path) =>
+  supabase
+    ? supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl
+    : `/storage/${bucket}/${path}`;
 
 /**
  * Upload buffer to Supabase Storage bucket
