@@ -1,4 +1,4 @@
-import './config/env.js'; // loads server/.env and checks required settings; must stay first
+import './config/env.js';    // loads server/.env
 import app from './app.js';
 
 const PORT = process.env.PORT || 5000;

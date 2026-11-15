@@ -2,10 +2,7 @@ import pool from '../db/pool.js';
 import { USER_COLUMNS, JOIN_PROFILE, pairMatch } from '../db/sql.js';
 import { parsePaging } from '../utils/params.js';
 
-// :userId is validated by router.param in friend.routes.js (req.otherId).
-// Express 5 forwards errors thrown in async handlers to errorhandler.js.
 
-// The friendships row (alias f) between me ($1) and the other user ($2)
 const PAIR = pairMatch('$1::int', '$2::int');
 
 const REMOVED_MESSAGE = {
@@ -14,8 +11,8 @@ const REMOVED_MESSAGE = {
   declined: 'Declined request cleared',
 };
 
-// ── GET /api/friends ───────────────────────────────────────
-// Accepted friends of the logged-in user.
+//GET /api/friends
+// Accepted friends of the loggedin user.
 export const listFriends = async (req, res) => {
   const { limit, offset } = parsePaging(req.query, { defaultLimit: 50, maxLimit: 100 });
   const result = await pool.query(
@@ -31,8 +28,7 @@ export const listFriends = async (req, res) => {
   return res.status(200).json({ friends: result.rows, limit, offset });
 };
 
-// ── GET /api/friends/suggestions?limit= ────────────────────
-// Friends of my friends I am not connected to, most mutual friends first.
+// ── GET /api/friends/suggestions?limit= 10 for friends suggestions 
 export const listSuggestions = async (req, res) => {
   const { limit } = parsePaging(req.query, { defaultLimit: 10, maxLimit: 50 });
   const result = await pool.query(
@@ -48,15 +44,14 @@ export const listSuggestions = async (req, res) => {
   return res.status(200).json({ suggestions: result.rows });
 };
 
-// ── GET /api/friends/requests?direction=incoming|outgoing ──
-// Pending requests sent to me (incoming, default) or by me (outgoing).
+//GET /api/friends/requests?direction=incoming|outgoing , Pending requests 
 export const listRequests = async (req, res) => {
   const direction = req.query.direction || 'incoming';
   if (!['incoming', 'outgoing'].includes(direction)) {
     return res.status(400).json({ error: "direction must be 'incoming' or 'outgoing'" });
   }
 
-  // incoming: I am the addressee, show the requester (and vice versa)
+  
   const [mine, theirs] = direction === 'incoming'
     ? ['addressee_id', 'requester_id']
     : ['requester_id', 'addressee_id'];
@@ -74,10 +69,9 @@ export const listRequests = async (req, res) => {
   return res.status(200).json({ direction, requests: result.rows });
 };
 
-// ── POST /api/friends/requests/:userId ─────────────────────
-// Send a friend request. A previously declined request may be re-sent
-// (by either side): the old row is replaced with a fresh pending one,
-// so the INSERT trigger notifies the addressee again.
+//POST /api/friends/requests/:userId 
+//A previously declined friend request can be re-sent
+
 export const sendRequest = async (req, res) => {
   const user_id = req.user.user_id;
   const other_id = req.otherId;
@@ -129,7 +123,7 @@ export const sendRequest = async (req, res) => {
   }
 };
 
-// ── PATCH /api/friends/requests/:userId ────────────────────
+// ── PATCH /api/friends/requests/:userId
 // Accept or decline a pending request that :userId sent to me.
 // Body: { "action": "accept" | "decline" }
 export const respondToRequest = async (req, res) => {
@@ -155,9 +149,9 @@ export const respondToRequest = async (req, res) => {
   return res.status(200).json({ friendship: result.rows[0] });
 };
 
-// ── DELETE /api/friends/:userId ────────────────────────────
-// Unfriend (accepted), cancel my own pending request, or clear a declined one.
-// A pending request sent TO me must be declined via PATCH, not deleted.
+// DELETE /api/friends/:userId
+// Unfriend,  cancel my pending request, or clear a declined one.
+// A pending request sent to me must be declined via PATCH, not deleted.
 export const removeFriendship = async (req, res) => {
   const result = await pool.query(
     `DELETE FROM friendships f

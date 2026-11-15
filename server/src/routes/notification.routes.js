@@ -11,7 +11,7 @@ import { idParam } from '../utils/params.js';
 
 const router = Router();
 
-// All notification routes require authentication
+//all notification routes require auth
 router.use(auth);
 router.param('id', idParam('notification'));
 

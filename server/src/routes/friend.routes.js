@@ -12,11 +12,11 @@ import { userIdParam } from '../utils/params.js';
 
 const router = Router();
 
-// All friend routes require authentication
+// for authenticating all friend routes
 router.use(auth);
 router.param('userId', userIdParam({ selfMessage: 'You cannot target yourself' }));
 
-router.get('/',                   listFriends);
+router.get('/',                  listFriends);
 router.get('/suggestions',        listSuggestions);
 router.get('/requests',           listRequests);
 router.post('/requests/:userId',  sendRequest);

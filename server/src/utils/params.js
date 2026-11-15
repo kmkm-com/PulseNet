@@ -1,14 +1,14 @@
 // Shared request parsing for controllers and routers.
 
-// Positive integer or null
+//positive int or null
 export const toPositiveInt = (value) => {
   const n = Number(value);
   return Number.isInteger(n) && n > 0 ? n : null;
 };
 
 // router.param handler for :userId. Validates the id once per request and
-// stores it as req.otherId, so handlers never parse it themselves.
-// Use after router.use(auth) so req.user is set.
+// stores it as req.otherId, so handlers never parse it themselves
+// Use after router.use(auth) so req.user is set
 export const userIdParam = ({ selfMessage } = {}) => (req, res, next, value) => {
   const id = toPositiveInt(value);
   if (id === null) {
@@ -31,7 +31,7 @@ export const idParam = (label) => (req, res, next, value) => {
   next();
 };
 
-// ?limit=&offset= with a per-endpoint default and cap; offset never negative
+//offset cant be negative
 export const parsePaging = (query, { defaultLimit, maxLimit }) => ({
   limit: Math.min(toPositiveInt(query.limit) ?? defaultLimit, maxLimit),
   offset: Math.max(parseInt(query.offset) || 0, 0),
